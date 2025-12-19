@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>D&D Availability</title>
+
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --text:#e5e7eb;
+      --muted:#9ca3af;
+      --line:rgba(255,255,255,.10);
+      --shadow: 0 10px 30px rgba(0,0,0,.45);
+      --radius:16px;
+      --cell-radius:14px;
+    }
+
+    *{ box-sizing:border-box; }
+
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: radial-gradient(1200px 700px at 50% -200px, #1f2937 0%, var(--bg) 55%, #05070a 100%);
+      color:var(--text);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .wrap{
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 14px 14px 28px;
+    }
+
+    /* Banner */
+    .banner{
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      display:flex;
+      align-items:center;
+      gap:12px;
+      margin-bottom: 14px;
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .banner-title{
+      font-weight: 900;
+      font-size: 20px; /* bigger */
+      letter-spacing: .2px;
+      line-height: 1.1;
+    }
+    .banner-text{
+      display:flex;
+      flex-direction:column;
+      min-width: 0;
+    }
+    .banner-right{
+      margin-left:auto;
+      display:flex;
+      gap:8px;
+      align-items:center;
+      font-size:12px;
+    }
+    .pill{
+      border: 1px solid var(--line);
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      display:flex;
+      align-items:center;
+      gap:8px;
+      user-select:none;
+      color: #fff;
+    }
+    .pill-x{
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.22);
+      background: rgba(0,0,0,.18);
+      color: #fff;
+      display:none; /* toggled via JS */
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .pill-x:hover{ background: rgba(0,0,0,.26); }
+    .pill-x:active{ transform: translateY(1px); }
+
+    button.reset{
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.18);
+      color: #fff;
+      padding: 8px 10px;
+      border-radius: 999px;
+      cursor:pointer;
+      user-select:none;
+    }
+    button.reset:hover{ background: rgba(255,255,255,.14); }
+    button.reset:active{ transform: translateY(1px); }
+
+    /* Month header */
+    .monthbar{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      margin: 12px 0;
+      gap: 10px;
+    }
+    .month-title{
+      font-size: 18px;
+      font-weight: 850;
+      letter-spacing: .2px;
+    }
+    .navbtns{
+      display:flex;
+      gap:8px;
+      flex: 0 0 auto;
+    }
+    .navbtn{
+      width:44px;
+      height:44px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      color:var(--text);
+      font-size:18px;
+      cursor:pointer;
+      user-select:none;
+    }
+    .navbtn:hover{ background: rgba(255,255,255,.06); }
+    .navbtn:active{ transform: translateY(1px); }
+
+    /* Calendar */
+    .calendar{
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      overflow:hidden;
+      background: rgba(255,255,255,.03);
+      box-shadow: var(--shadow);
+    }
+    .dow{
+      display:grid;
+      grid-template-columns: repeat(7, 1fr);
+      border-bottom:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+    }
+    .dow div{
+      padding:10px 6px;
+      text-align:center;
+      font-size:12px;
+      color:var(--muted);
+      letter-spacing: .3px;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(7, 1fr);
+      padding:10px;
+      gap:0;
+    }
+    .cell{
+      height:54px;
+      border-radius: var(--cell-radius);
+      border:1px solid rgba(255,255,255,.08);
+      background: rgba(0,0,0,.15);
+      padding:8px;
+      position:relative;
+      cursor:pointer;
+      user-select:none;
+    }
+    .cell:hover{ background: rgba(255,255,255,.04); }
+    .cell:active{ transform: translateY(1px); }
+    .cell.blank{
+      background:transparent;
+      border:none;
+      cursor:default;
+    }
+    .num{
+      font-size:12px;
+      font-weight:750;
+      opacity:.95;
+    }
+    .cell.selected{
+      outline:2px solid rgba(255,255,255,.40);
+      outline-offset:1px;
+    }
+    .status-chip{
+      position:absolute;
+      left:8px;
+      bottom:8px;
+      width:10px;
+      height:10px;
+      border-radius:50%;
+    }
+
+    /* Actions */
+    .actions{
+      margin-top:14px;
+      display:none;
+      gap:10px;
+    }
+    .actions.show{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      grid-auto-rows: 52px;
+    }
+    .action{
+      height:52px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      font-weight:900;
+      cursor:pointer;
+      user-select:none;
+      color: #0b0f14;
+      letter-spacing: .2px;
+    }
+    .action:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+    }
+    .action:active{ transform: translateY(1px); }
+
+    .green{ background:#22c55e; }
+    .blue{ background:#3b82f6; }
+    .yellow{ background:#f59e0b; }
+    .red{ background:#ef4444; }
+
+    .clear{
+      grid-column: 1 / span 2; /* full width under the 2x2 */
+      background: rgba(255,255,255,.12);
+      color: #ffffff;
+      border: 1px solid rgba(255,255,255,.18);
+    }
+    .clear:hover{ background: rgba(255,255,255,.16); }
+
+    /* Modal */
+    .modal-backdrop{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,.65);
+      backdrop-filter: blur(8px);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+      z-index:999;
+    }
+    .modal{
+      width:min(520px, 100%);
+      border-radius:20px;
+      background: rgba(17,24,39,.95);
+      border:1px solid var(--line);
+      box-shadow: var(--shadow);
+      padding:16px;
+    }
+    .modal h2{
+      margin: 0 0 12px;
+      font-size:18px;
+      letter-spacing: .2px;
+    }
+
+    .char-grid{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:10px;
+    }
+    @media (min-width:520px){
+      .char-grid{ grid-template-columns:1fr 1fr; }
+    }
+    .char-btn{
+      border-radius:16px;
+      border:none;
+      padding:16px;
+      min-height:56px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      user-select:none;
+      font-weight:900;
+      font-size:16px;
+      letter-spacing:.3px;
+      color:#ffffff;
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,.15),
+        0 6px 18px rgba(0,0,0,.35);
+    }
+    .char-btn:hover{ filter: brightness(1.05); }
+    .char-btn:active{
+      transform: translateY(1px);
+      filter: brightness(0.95);
+    }
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+
+  <div class="banner" id="banner">
+    <div class="banner-text">
+      <div class="banner-title" id="bannerTitle">Pick a character</div>
+    </div>
+
+    <div class="banner-right">
+      <span class="pill" id="selectedPill">
+        <span id="selectedCount">0 selected</span>
+        <span class="pill-x" id="clearSelectedX" title="Clear selected">×</span>
+      </span>
+      <button class="reset" id="changeChar" type="button">Change character</button>
+    </div>
+  </div>
+
+  <div class="monthbar">
+    <div class="month-title" id="monthTitle"></div>
+    <div class="navbtns">
+      <button class="navbtn" id="prev" type="button" aria-label="Previous month">‹</button>
+      <button class="navbtn" id="next" type="button" aria-label="Next month">›</button>
+    </div>
+  </div>
+
+  <div class="calendar">
+    <div class="dow">
+      <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div>
+      <div>Thu</div><div>Fri</div><div>Sat</div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="actions" id="actions">
+    <button class="action green" id="avail" disabled type="button">Available</button>
+    <button class="action blue" id="virt" disabled type="button">Virtual Only</button>
+    <button class="action yellow" id="maybe" disabled type="button">Maybe</button>
+    <button class="action red" id="unavail" disabled type="button">Unavailable</button>
+    <button class="action clear" id="clearStatus" disabled type="button">Clear Status</button>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <h2>Who are you?</h2>
+    <div class="char-grid" id="charGrid"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const CHARS = [
+    {id:"dandon", name:"Dandon", color:"#8C0A0A"},
+    {id:"jassa",  name:"Jassa",  color:"#4D1B5B"},
+    {id:"laurel", name:"Laurel", color:"#156D45"},
+    {id:"lia",    name:"Lia",    color:"#0F4116"},
+    {id:"lilli",  name:"Lilli",  color:"#DB0B91"},
+    {id:"silas",  name:"Silas",  color:"#A47D00"}
+  ];
+
+  const STATUS_COLORS = {
+    available:"#22c55e",
+    virtual:"#3b82f6",
+    maybe:"#f59e0b",
+    unavailable:"#ef4444"
+  };
+
+  let currentChar = localStorage.getItem("char") || "";
+  let selected = new Set();
+  let month = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+
+  const grid = document.getElementById("grid");
+  const monthTitle = document.getElementById("monthTitle");
+  const modal = document.getElementById("modal");
+  const banner = document.getElementById("banner");
+  const bannerTitle = document.getElementById("bannerTitle");
+  const selectedCount = document.getElementById("selectedCount");
+  const selectedPill = document.getElementById("selectedPill");
+  const clearSelectedX = document.getElementById("clearSelectedX");
+  const actions = document.getElementById("actions");
+
+  const pad = n => String(n).padStart(2,"0");
+  const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+  function storageKey(){
+    return `availability.${currentChar}`;
+  }
+  function loadData(){
+    return JSON.parse(localStorage.getItem(storageKey()) || "{}");
+  }
+  function saveData(data){
+    localStorage.setItem(storageKey(), JSON.stringify(data));
+  }
+
+  function renderBanner(){
+    const c = CHARS.find(x=>x.id===currentChar);
+
+    if(!c){
+      bannerTitle.textContent = "Pick a character";
+      banner.style.background = "linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02))";
+      banner.style.borderColor = "rgba(255,255,255,.10)";
+      selectedPill.style.background = "rgba(255,255,255,.10)";
+      return;
+    }
+
+    bannerTitle.textContent = `${c.name}'s Availability`;
+    banner.style.background = c.color;
+    banner.style.borderColor = "rgba(255,255,255,.18)";
+    selectedPill.style.background = "rgba(0,0,0,.18)";
+  }
+
+  function renderCalendar(){
+    grid.innerHTML="";
+    monthTitle.textContent = month.toLocaleString(undefined,{month:"long",year:"numeric"});
+    const data = currentChar ? loadData() : {};
+    const firstDow = new Date(month.getFullYear(), month.getMonth(), 1).getDay();
+    const daysInMonth = new Date(month.getFullYear(), month.getMonth()+1, 0).getDate();
+
+    for(let i=0;i<42;i++){
+      const day = i - firstDow + 1;
+      const cell = document.createElement("div");
+
+      if(day<1 || day>daysInMonth){
+        cell.className="cell blank";
+        grid.appendChild(cell);
+        continue;
+      }
+
+      const date = new Date(month.getFullYear(), month.getMonth(), day);
+      const key = ymd(date);
+
+      cell.className="cell";
+      if(selected.has(key)) cell.classList.add("selected");
+
+      cell.innerHTML=`<div class="num">${day}</div>`;
+
+      if(data[key]){
+        const dot=document.createElement("div");
+        dot.className="status-chip";
+        dot.style.background=STATUS_COLORS[data[key]] || "transparent";
+        cell.appendChild(dot);
+      }
+
+      cell.onclick=()=>{
+        if(!currentChar){ modal.style.display="flex"; return; }
+        selected.has(key) ? selected.delete(key) : selected.add(key);
+        updateActions();
+        renderCalendar();
+      };
+
+      grid.appendChild(cell);
+    }
+  }
+
+  function updateActions(){
+    selectedCount.textContent =
+  selected.size === 1 ? "1 date selected" : `${selected.size} dates selected`;
+
+    // show/hide the "x" in the pill
+    clearSelectedX.style.display = selected.size > 0 ? "flex" : "none";
+
+    const enable = selected.size>0 && currentChar;
+    actions.classList.add("show");
+    document.querySelectorAll(".action").forEach(b => b.disabled = !enable);
+  }
+
+  function clearSelected(){
+    selected.clear();
+    updateActions();
+    renderCalendar();
+  }
+
+  function applyStatus(status){
+    const data = loadData();
+
+    // status = null means "clear"
+    selected.forEach(d=>{
+      if(status === null) delete data[d];
+      else data[d] = status;
+    });
+
+    saveData(data);
+    clearSelected();
+  }
+
+  document.getElementById("avail").onclick=()=>applyStatus("available");
+  document.getElementById("virt").onclick=()=>applyStatus("virtual");
+  document.getElementById("maybe").onclick=()=>applyStatus("maybe");
+  document.getElementById("unavail").onclick=()=>applyStatus("unavailable");
+  document.getElementById("clearStatus").onclick=()=>applyStatus(null);
+
+  document.getElementById("prev").onclick=()=>{
+    month=new Date(month.getFullYear(),month.getMonth()-1,1);
+    clearSelected();
+  };
+  document.getElementById("next").onclick=()=>{
+    month=new Date(month.getFullYear(),month.getMonth()+1,1);
+    clearSelected();
+  };
+
+  document.getElementById("changeChar").onclick=()=>modal.style.display="flex";
+  clearSelectedX.onclick = clearSelected;
+
+  // Modal buttons
+  const cg=document.getElementById("charGrid");
+  cg.innerHTML = "";
+  CHARS.forEach(c=>{
+    const b=document.createElement("button");
+    b.className="char-btn";
+    b.textContent=c.name;
+    b.style.background=c.color;
+    b.type="button";
+    b.onclick=()=>{
+      currentChar=c.id;
+      localStorage.setItem("char",c.id);
+      selected.clear();
+      modal.style.display="none";
+      renderBanner();
+      updateActions();
+      renderCalendar();
+    };
+    cg.appendChild(b);
+  });
+
+  // Init
+  if(currentChar) modal.style.display="none";
+  renderBanner();
+  updateActions();
+  renderCalendar();
+})();
+</script>
+</body>
+</html>

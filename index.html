@@ -43,13 +43,17 @@
       align-items:center;
       gap:12px;
       margin-bottom: 14px;
-      transition: background .15s ease, border-color .15s ease;
+      transition: background .15s ease, border-color .15s ease, opacity .15s ease;
     }
     .banner-title{
       font-weight: 900;
-      font-size: 20px; /* bigger */
+      font-size: 20px;
       letter-spacing: .2px;
       line-height: 1.1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 60vw;
     }
     .banner-text{
       display:flex;
@@ -62,6 +66,7 @@
       gap:8px;
       align-items:center;
       font-size:12px;
+      flex: 0 0 auto;
     }
     .pill{
       border: 1px solid var(--line);
@@ -102,6 +107,10 @@
     }
     button.reset:hover{ background: rgba(255,255,255,.14); }
     button.reset:active{ transform: translateY(1px); }
+    button.reset:disabled{
+      opacity: .55;
+      cursor:not-allowed;
+    }
 
     /* Month header */
     .monthbar{
@@ -115,6 +124,14 @@
       font-size: 18px;
       font-weight: 850;
       letter-spacing: .2px;
+      display:flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .loading-tag{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
     }
     .navbtns{
       display:flex;
@@ -134,6 +151,10 @@
     }
     .navbtn:hover{ background: rgba(255,255,255,.06); }
     .navbtn:active{ transform: translateY(1px); }
+    .navbtn:disabled{
+      opacity: .55;
+      cursor:not-allowed;
+    }
 
     /* Calendar */
     .calendar{
@@ -142,6 +163,8 @@
       overflow:hidden;
       background: rgba(255,255,255,.03);
       box-shadow: var(--shadow);
+      opacity: 1;
+      transition: opacity .15s ease;
     }
     .dow{
       display:grid;
@@ -230,7 +253,7 @@
     .red{ background:#ef4444; }
 
     .clear{
-      grid-column: 1 / span 2; /* full width under the 2x2 */
+      grid-column: 1 / span 2;
       background: rgba(255,255,255,.12);
       color: #ffffff;
       border: 1px solid rgba(255,255,255,.18);
@@ -307,22 +330,25 @@
 
     <div class="banner-right">
       <span class="pill" id="selectedPill">
-        <span id="selectedCount">0 selected</span>
+        <span id="selectedCount">0 dates selected</span>
         <span class="pill-x" id="clearSelectedX" title="Clear selected">×</span>
       </span>
-      <button class="reset" id="changeChar" type="button">Change character</button>
+      <button class="reset" id="changeChar" type="button">Change</button>
     </div>
   </div>
 
   <div class="monthbar">
-    <div class="month-title" id="monthTitle"></div>
+    <div class="month-title" id="monthTitle">
+      <span id="monthLabel"></span>
+      <span class="loading-tag" id="loadingTag" style="display:none;">Loading…</span>
+    </div>
     <div class="navbtns">
       <button class="navbtn" id="prev" type="button" aria-label="Previous month">‹</button>
       <button class="navbtn" id="next" type="button" aria-label="Next month">›</button>
     </div>
   </div>
 
-  <div class="calendar">
+  <div class="calendar" id="calendar">
     <div class="dow">
       <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div>
       <div>Thu</div><div>Fri</div><div>Sat</div>
@@ -349,6 +375,12 @@
 
 <script>
 (() => {
+  // =========================
+  // CONFIG: your deployed Apps Script Web App URL
+  // =========================
+  const API_URL  = "https://script.google.com/macros/s/AKfycbyUFvCmGOw89tDkzwk_Fkgt9aVbNZ9m7m5dBylSHIlR1d_I5b9zMtdIGpW30VNc1gQX4w/exec";
+  const GROUP_ID = "fearsomeforce"; // any string; must match what the script expects (it lowercases)
+
   const CHARS = [
     {id:"dandon", name:"Dandon", color:"#8C0A0A"},
     {id:"jassa",  name:"Jassa",  color:"#4D1B5B"},
@@ -369,27 +401,45 @@
   let selected = new Set();
   let month = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
+  // cache for current month + current person
+  let monthData = {}; // {"YYYY-MM-DD": "available" | "virtual" | "maybe" | "unavailable"}
+
+  let isLoading = false;
+
   const grid = document.getElementById("grid");
-  const monthTitle = document.getElementById("monthTitle");
   const modal = document.getElementById("modal");
   const banner = document.getElementById("banner");
   const bannerTitle = document.getElementById("bannerTitle");
+  const monthLabel = document.getElementById("monthLabel");
+  const loadingTag = document.getElementById("loadingTag");
   const selectedCount = document.getElementById("selectedCount");
   const selectedPill = document.getElementById("selectedPill");
   const clearSelectedX = document.getElementById("clearSelectedX");
   const actions = document.getElementById("actions");
+  const calendar = document.getElementById("calendar");
+  const prevBtn = document.getElementById("prev");
+  const nextBtn = document.getElementById("next");
+  const changeBtn = document.getElementById("changeChar");
 
   const pad = n => String(n).padStart(2,"0");
   const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
-  function storageKey(){
-    return `availability.${currentChar}`;
+  function monthParam(d){
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
   }
-  function loadData(){
-    return JSON.parse(localStorage.getItem(storageKey()) || "{}");
-  }
-  function saveData(data){
-    localStorage.setItem(storageKey(), JSON.stringify(data));
+
+  function setLoading(on){
+    isLoading = on;
+    loadingTag.style.display = on ? "inline" : "none";
+    calendar.style.opacity = on ? 0.7 : 1;
+
+    // Disable navigation & change while loading to avoid race-y weirdness
+    prevBtn.disabled = on;
+    nextBtn.disabled = on;
+    changeBtn.disabled = on;
+
+    // Also disable status buttons while loading
+    document.querySelectorAll(".action").forEach(b => b.disabled = true);
   }
 
   function renderBanner(){
@@ -411,8 +461,8 @@
 
   function renderCalendar(){
     grid.innerHTML="";
-    monthTitle.textContent = month.toLocaleString(undefined,{month:"long",year:"numeric"});
-    const data = currentChar ? loadData() : {};
+    monthLabel.textContent = month.toLocaleString(undefined,{month:"long",year:"numeric"});
+
     const firstDow = new Date(month.getFullYear(), month.getMonth(), 1).getDay();
     const daysInMonth = new Date(month.getFullYear(), month.getMonth()+1, 0).getDate();
 
@@ -434,14 +484,16 @@
 
       cell.innerHTML=`<div class="num">${day}</div>`;
 
-      if(data[key]){
+      const status = monthData[key];
+      if(status){
         const dot=document.createElement("div");
         dot.className="status-chip";
-        dot.style.background=STATUS_COLORS[data[key]] || "transparent";
+        dot.style.background=STATUS_COLORS[status] || "transparent";
         cell.appendChild(dot);
       }
 
       cell.onclick=()=>{
+        if(isLoading) return;
         if(!currentChar){ modal.style.display="flex"; return; }
         selected.has(key) ? selected.delete(key) : selected.add(key);
         updateActions();
@@ -454,12 +506,11 @@
 
   function updateActions(){
     selectedCount.textContent =
-  selected.size === 1 ? "1 date selected" : `${selected.size} dates selected`;
+      selected.size === 1 ? "1 date selected" : `${selected.size} dates selected`;
 
-    // show/hide the "x" in the pill
     clearSelectedX.style.display = selected.size > 0 ? "flex" : "none";
 
-    const enable = selected.size>0 && currentChar;
+    const enable = selected.size>0 && !!currentChar && !isLoading;
     actions.classList.add("show");
     document.querySelectorAll(".action").forEach(b => b.disabled = !enable);
   }
@@ -470,35 +521,103 @@
     renderCalendar();
   }
 
-  function applyStatus(status){
-    const data = loadData();
+  // =========================
+  // API calls (Apps Script)
+  // =========================
+  async function apiGetMonth(){
+    const mp = monthParam(month);
+    const url = `${API_URL}?groupId=${encodeURIComponent(GROUP_ID)}&month=${encodeURIComponent(mp)}`;
 
-    // status = null means "clear"
-    selected.forEach(d=>{
-      if(status === null) delete data[d];
-      else data[d] = status;
-    });
+    const res = await fetch(url, { method: "GET" });
+    if(!res.ok) throw new Error(`GET failed (${res.status})`);
+    const json = await res.json();
 
-    saveData(data);
-    clearSelected();
+    // Convert list -> map for this person only
+    const map = {};
+    for(const row of (json.availability || [])){
+      if(row.personId === currentChar){
+        map[row.date] = row.status;
+      }
+    }
+    return map;
   }
 
+  async function apiSetStatusBulk(dates, statusOrNull){
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type":"application/json" },
+      body: JSON.stringify({
+        action: "setStatusBulk",
+        groupId: GROUP_ID,
+        personId: currentChar,
+        dates,
+        status: statusOrNull // string OR null to clear
+      })
+    });
+    if(!res.ok) throw new Error(`POST failed (${res.status})`);
+    return await res.json();
+  }
+
+  async function refreshMonthAndRender(){
+    if(!currentChar) return;
+    setLoading(true);
+    try{
+      monthData = await apiGetMonth();
+    } finally {
+      setLoading(false);
+      renderBanner();
+      updateActions();
+      renderCalendar();
+    }
+  }
+
+  async function applyStatus(status){
+    if(isLoading) return;
+    if(!currentChar || selected.size === 0) return;
+
+    const dates = Array.from(selected);
+    setLoading(true);
+    try{
+      await apiSetStatusBulk(dates, status); // status can be string or null
+      selected.clear();
+      monthData = await apiGetMonth();
+    } catch (e){
+      console.error(e);
+      alert("Could not save to Google Sheets. (Check Apps Script deployment + sheet headers.)");
+    } finally {
+      setLoading(false);
+      renderBanner();
+      updateActions();
+      renderCalendar();
+    }
+  }
+
+  // Buttons
   document.getElementById("avail").onclick=()=>applyStatus("available");
   document.getElementById("virt").onclick=()=>applyStatus("virtual");
   document.getElementById("maybe").onclick=()=>applyStatus("maybe");
   document.getElementById("unavail").onclick=()=>applyStatus("unavailable");
   document.getElementById("clearStatus").onclick=()=>applyStatus(null);
 
-  document.getElementById("prev").onclick=()=>{
+  prevBtn.onclick=async ()=>{
+    if(isLoading) return;
     month=new Date(month.getFullYear(),month.getMonth()-1,1);
     clearSelected();
-  };
-  document.getElementById("next").onclick=()=>{
-    month=new Date(month.getFullYear(),month.getMonth()+1,1);
-    clearSelected();
+    await refreshMonthAndRender();
   };
 
-  document.getElementById("changeChar").onclick=()=>modal.style.display="flex";
+  nextBtn.onclick=async ()=>{
+    if(isLoading) return;
+    month=new Date(month.getFullYear(),month.getMonth()+1,1);
+    clearSelected();
+    await refreshMonthAndRender();
+  };
+
+  changeBtn.onclick=()=>{
+    if(isLoading) return;
+    modal.style.display="flex";
+  };
+
   clearSelectedX.onclick = clearSelected;
 
   // Modal buttons
@@ -510,7 +629,8 @@
     b.textContent=c.name;
     b.style.background=c.color;
     b.type="button";
-    b.onclick=()=>{
+    b.onclick=async ()=>{
+      if(isLoading) return;
       currentChar=c.id;
       localStorage.setItem("char",c.id);
       selected.clear();
@@ -518,15 +638,24 @@
       renderBanner();
       updateActions();
       renderCalendar();
+      await refreshMonthAndRender();
     };
     cg.appendChild(b);
   });
 
   // Init
-  if(currentChar) modal.style.display="none";
-  renderBanner();
-  updateActions();
-  renderCalendar();
+  if(currentChar){
+    modal.style.display="none";
+    renderBanner();
+    updateActions();
+    renderCalendar();
+    refreshMonthAndRender();
+  } else {
+    modal.style.display="flex";
+    renderBanner();
+    updateActions();
+    renderCalendar();
+  }
 })();
 </script>
 </body>

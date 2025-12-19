@@ -2,8 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>D&D Availability</title>
+
+  <!-- Supabase JS (UMD build) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     :root{
@@ -14,6 +17,19 @@
       --shadow: 0 10px 30px rgba(0,0,0,.45);
       --radius:16px;
       --cell-radius:14px;
+
+      --green:#22c55e;
+      --blue:#3b82f6;
+      --yellow:#f59e0b;
+      --red:#ef4444;
+
+      --darkBtn:#141b24;
+      --darkBtnBorder: rgba(255,255,255,.12);
+      --darkBtnHover: rgba(255,255,255,.06);
+
+      --bestGlow: rgba(245, 158, 11, .18);  /* yellow-ish */
+      --confirmGlow: rgba(34, 197, 94, .18); /* green-ish */
+      --blockedFill: rgba(239, 68, 68, .10); /* red-ish */
     }
 
     *{ box-sizing:border-box; }
@@ -27,7 +43,7 @@
     }
 
     .wrap{
-      max-width: 900px;
+      max-width: 920px;
       margin: 0 auto;
       padding: 14px 14px 28px;
     }
@@ -35,16 +51,22 @@
     /* Banner */
     .banner{
       border-radius: var(--radius);
-      padding: 14px 16px;
+      padding: 14px 16px 12px;
       background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
       border: 1px solid var(--line);
       box-shadow: var(--shadow);
       display:flex;
-      align-items:center;
+      align-items:flex-start;
       gap:12px;
-      margin-bottom: 14px;
-      transition: background .15s ease, border-color .15s ease, opacity .15s ease;
+      margin-bottom: 12px;
+      transition: background .15s ease, border-color .15s ease;
     }
+
+    .banner-left{
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
     .banner-title{
       font-weight: 900;
       font-size: 20px;
@@ -53,21 +75,56 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 60vw;
     }
-    .banner-text{
+
+    .banner-subrow{
+      margin-top: 10px;
       display:flex;
-      flex-direction:column;
-      min-width: 0;
+      gap:10px;
+      align-items:center;
+      flex-wrap: wrap;
     }
+
+    .modebtn{
+      flex: 1 1 160px;
+      height: 44px;
+      border-radius: 14px;
+      border: 1px solid var(--darkBtnBorder);
+      background: rgba(255,255,255,.03);
+      color: #fff;
+      font-weight: 900;
+      letter-spacing: .2px;
+      cursor:pointer;
+      user-select:none;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+    }
+    .modebtn:hover{ background: var(--darkBtnHover); }
+    .modebtn.active{
+      background: var(--darkBtn);
+      border-color: rgba(255,255,255,.18);
+    }
+
+    .icon{
+      width: 18px;
+      height: 18px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      opacity: .95;
+    }
+
     .banner-right{
-      margin-left:auto;
+      flex: 0 0 auto;
       display:flex;
       gap:8px;
       align-items:center;
       font-size:12px;
-      flex: 0 0 auto;
+      margin-top: 2px;
     }
+
     .pill{
       border: 1px solid var(--line);
       padding: 6px 10px;
@@ -78,7 +135,9 @@
       gap:8px;
       user-select:none;
       color: #fff;
+      white-space: nowrap;
     }
+
     .pill-x{
       width: 22px;
       height: 22px;
@@ -86,7 +145,7 @@
       border: 1px solid rgba(255,255,255,.22);
       background: rgba(0,0,0,.18);
       color: #fff;
-      display:none; /* toggled via JS */
+      display:none;
       align-items:center;
       justify-content:center;
       cursor:pointer;
@@ -104,13 +163,11 @@
       border-radius: 999px;
       cursor:pointer;
       user-select:none;
+      font-weight: 900;
     }
     button.reset:hover{ background: rgba(255,255,255,.14); }
     button.reset:active{ transform: translateY(1px); }
-    button.reset:disabled{
-      opacity: .55;
-      cursor:not-allowed;
-    }
+    button.reset:disabled{ opacity:.55; cursor:not-allowed; }
 
     /* Month header */
     .monthbar{
@@ -120,24 +177,26 @@
       margin: 12px 0;
       gap: 10px;
     }
+
     .month-title{
       font-size: 18px;
-      font-weight: 850;
+      font-weight: 900;
       letter-spacing: .2px;
       display:flex;
       align-items: baseline;
       gap: 10px;
+      min-width: 0;
     }
+
     .loading-tag{
       font-size: 12px;
       color: var(--muted);
-      font-weight: 700;
+      font-weight: 900;
+      display:none;
+      white-space: nowrap;
     }
-    .navbtns{
-      display:flex;
-      gap:8px;
-      flex: 0 0 auto;
-    }
+
+    .navbtns{ display:flex; gap:8px; flex: 0 0 auto; }
     .navbtn{
       width:44px;
       height:44px;
@@ -151,10 +210,7 @@
     }
     .navbtn:hover{ background: rgba(255,255,255,.06); }
     .navbtn:active{ transform: translateY(1px); }
-    .navbtn:disabled{
-      opacity: .55;
-      cursor:not-allowed;
-    }
+    .navbtn:disabled{ opacity:.55; cursor:not-allowed; }
 
     /* Calendar */
     .calendar{
@@ -163,12 +219,11 @@
       overflow:hidden;
       background: rgba(255,255,255,.03);
       box-shadow: var(--shadow);
-      opacity: 1;
-      transition: opacity .15s ease;
     }
+
     .dow{
       display:grid;
-      grid-template-columns: repeat(7, 1fr);
+      grid-template-columns: repeat(7, minmax(0, 1fr));
       border-bottom:1px solid var(--line);
       background: rgba(255,255,255,.03);
     }
@@ -178,15 +233,17 @@
       font-size:12px;
       color:var(--muted);
       letter-spacing: .3px;
+      min-width: 0;
     }
+
     .grid{
       display:grid;
-      grid-template-columns: repeat(7, 1fr);
+      grid-template-columns: repeat(7, minmax(0, 1fr));
       padding:10px;
-      gap:0;
+      gap:8px;
     }
+
     .cell{
-      height:54px;
       border-radius: var(--cell-radius);
       border:1px solid rgba(255,255,255,.08);
       background: rgba(0,0,0,.15);
@@ -194,23 +251,44 @@
       position:relative;
       cursor:pointer;
       user-select:none;
+      min-width: 0;
+      height: 62px;
+      overflow:hidden;
     }
     .cell:hover{ background: rgba(255,255,255,.04); }
     .cell:active{ transform: translateY(1px); }
-    .cell.blank{
-      background:transparent;
-      border:none;
-      cursor:default;
-    }
-    .num{
-      font-size:12px;
-      font-weight:750;
-      opacity:.95;
-    }
+    .cell.blank{ background:transparent; border:none; cursor:default; }
+
     .cell.selected{
       outline:2px solid rgba(255,255,255,.40);
       outline-offset:1px;
     }
+
+    /* persistent treatments across BOTH views */
+    .cell.best{
+      box-shadow: 0 0 0 9999px var(--bestGlow) inset;
+      border-color: rgba(245,158,11,.35);
+    }
+    .cell.confirmed{
+      box-shadow: 0 0 0 9999px var(--confirmGlow) inset;
+      border-color: rgba(34,197,94,.35);
+    }
+    .cell.blocked{
+      box-shadow: 0 0 0 9999px var(--blockedFill) inset;
+      border-color: rgba(239,68,68,.30);
+    }
+
+    /* day number */
+    .num{
+      font-size:12px;
+      font-weight:900;
+      opacity:.95;
+    }
+    .num.blockedNum{
+      color: rgba(239,68,68,.95);
+    }
+
+    /* MY view: single status dot */
     .status-chip{
       position:absolute;
       left:8px;
@@ -220,17 +298,41 @@
       border-radius:50%;
     }
 
-    /* Actions */
+    /* GROUP view layout: left number, right sextuplet dots */
+    .cell-inner{
+      display:grid;
+      grid-template-columns: 22px 1fr;
+      align-items:center;
+      gap:8px;
+      height: 100%;
+    }
+
+    .dot6{
+      display:grid;
+      grid-template-columns: repeat(3, 10px);
+      grid-auto-rows: 10px;
+      gap:4px;
+      justify-content:flex-end;
+      align-content:center;
+    }
+
+    .dot{
+      width:10px;
+      height:10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.03); /* empty */
+    }
+
+    /* Actions (MY view) */
     .actions{
       margin-top:14px;
-      display:none;
-      gap:10px;
-    }
-    .actions.show{
       display:grid;
       grid-template-columns:1fr 1fr;
       grid-auto-rows: 52px;
+      gap:10px;
     }
+
     .action{
       height:52px;
       border-radius:14px;
@@ -241,16 +343,13 @@
       color: #0b0f14;
       letter-spacing: .2px;
     }
-    .action:disabled{
-      opacity:.45;
-      cursor:not-allowed;
-    }
+    .action:disabled{ opacity:.45; cursor:not-allowed; }
     .action:active{ transform: translateY(1px); }
 
-    .green{ background:#22c55e; }
-    .blue{ background:#3b82f6; }
-    .yellow{ background:#f59e0b; }
-    .red{ background:#ef4444; }
+    .green{ background:var(--green); }
+    .blue{ background:var(--blue); }
+    .yellow{ background:var(--yellow); }
+    .red{ background:var(--red); }
 
     .clear{
       grid-column: 1 / span 2;
@@ -260,40 +359,90 @@
     }
     .clear:hover{ background: rgba(255,255,255,.16); }
 
-    /* Modal */
+    /* Legend (group view) */
+    .legend{
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      box-shadow: var(--shadow);
+      display:none;
+      font-size: 13px;
+      color: rgba(255,255,255,.85);
+      line-height: 1.35;
+    }
+    .legend.show{ display:block; }
+    .legend .row{
+      display:flex;
+      gap:10px;
+      flex-wrap: wrap;
+      align-items:center;
+      margin-top: 8px;
+    }
+    .legend .chip{
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.18);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    /* Modal base */
     .modal-backdrop{
       position:fixed;
       inset:0;
       background: rgba(0,0,0,.65);
       backdrop-filter: blur(8px);
-      display:flex;
+      display:none;
       align-items:center;
       justify-content:center;
       padding:18px;
       z-index:999;
     }
+
     .modal{
-      width:min(520px, 100%);
+      width:min(560px, 100%);
       border-radius:20px;
       background: rgba(17,24,39,.95);
       border:1px solid var(--line);
       box-shadow: var(--shadow);
       padding:16px;
+      position:relative;
     }
+
     .modal h2{
       margin: 0 0 12px;
       font-size:18px;
       letter-spacing: .2px;
+      padding-right: 42px;
     }
 
-    .char-grid{
-      display:grid;
-      grid-template-columns:1fr;
-      gap:10px;
+    .xbtn{
+      position:absolute;
+      top:12px;
+      right:12px;
+      width:36px;
+      height:36px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.16);
+      background: rgba(0,0,0,.20);
+      color:#fff;
+      cursor:pointer;
+      font-size:20px;
+      font-weight: 900;
+      line-height: 1;
+      display:flex;
+      align-items:center;
+      justify-content:center;
     }
-    @media (min-width:520px){
-      .char-grid{ grid-template-columns:1fr 1fr; }
-    }
+    .xbtn:hover{ background: rgba(0,0,0,.28); }
+    .xbtn:active{ transform: translateY(1px); }
+
+    /* Character picker */
+    .char-grid{ display:grid; grid-template-columns:1fr; gap:10px; }
+    @media (min-width:520px){ .char-grid{ grid-template-columns:1fr 1fr; } }
     .char-btn{
       border-radius:16px;
       border:none;
@@ -308,14 +457,184 @@
       font-size:16px;
       letter-spacing:.3px;
       color:#ffffff;
-      box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,.15),
-        0 6px 18px rgba(0,0,0,.35);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.15), 0 6px 18px rgba(0,0,0,.35);
     }
     .char-btn:hover{ filter: brightness(1.05); }
-    .char-btn:active{
-      transform: translateY(1px);
-      filter: brightness(0.95);
+    .char-btn:active{ transform: translateY(1px); filter: brightness(0.95); }
+
+    /* Group date modal */
+    .people-list{
+      margin-top: 10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+
+    .person-line{
+      display:flex;
+      gap:10px;
+      align-items:baseline;
+      flex-wrap: wrap;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.16);
+      padding: 10px 12px;
+      border-radius: 14px;
+    }
+    .pname{
+      font-weight: 900;
+      letter-spacing:.2px;
+      white-space: nowrap;
+    }
+    .pstatus{
+      color: rgba(255,255,255,.92);
+      font-weight: 700;
+      overflow-wrap:anywhere;
+    }
+
+    .g-actions{
+      margin-top: 12px;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+
+    .g-action{
+      height: 52px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      font-weight: 900;
+      cursor:pointer;
+      user-select:none;
+      color:#0b0f14;
+      letter-spacing: .2px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+    }
+    .g-action:active{ transform: translateY(1px); }
+
+    .g-block{ background: var(--red); }
+    .g-unblock{
+      background: rgba(255,255,255,.12);
+      color:#fff;
+      border: 1px solid rgba(255,255,255,.18);
+    }
+    .g-confirm{ background: var(--green); }
+    .g-clock{
+      grid-column: 1 / span 2;
+      background: rgba(255,255,255,.12);
+      color:#fff;
+      border: 1px solid rgba(255,255,255,.18);
+    }
+    .g-cancel{
+      grid-column: 1 / span 2;
+      background: rgba(255,255,255,.10);
+      color:#fff;
+      border: 1px solid rgba(255,255,255,.16);
+    }
+
+    /* Loading overlay */
+    .overlay{
+      position: fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index: 1200;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(6px);
+      padding: 18px;
+    }
+    .overlay-card{
+      width:min(420px, 100%);
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(17,24,39,.95);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      text-align:center;
+      font-weight: 900;
+      letter-spacing: .2px;
+    }
+
+    /* Confirm time modal */
+    .timebox{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      margin-top: 8px;
+    }
+    .time-title{
+      font-weight: 900;
+      font-size: 16px;
+    }
+    .time-date{
+      color: rgba(255,255,255,.85);
+      font-weight: 800;
+      margin-top: -4px;
+    }
+    .time-input{
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.18);
+      color: #fff;
+      padding: 14px 12px;
+      font-size: 16px;
+      font-weight: 800;
+      outline: none;
+    }
+    .time-input::placeholder{ color: rgba(255,255,255,.55); font-weight: 800; }
+
+    .time-check{
+      position:absolute;
+      top:12px;
+      right:12px;
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(34,197,94,.20);
+      color:#fff;
+      cursor:pointer;
+      font-size: 20px;
+      font-weight: 900;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .time-check:hover{ background: rgba(34,197,94,.28); }
+    .time-check:active{ transform: translateY(1px); }
+
+    /* Toast */
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(0,0,0,.50);
+      color: #fff;
+      font-weight: 900;
+      letter-spacing: .2px;
+      display:none;
+      z-index: 1300;
+      max-width: calc(100vw - 24px);
+      text-align:center;
+    }
+
+    /* Mobile tuning: smaller gap so 7 columns fit */
+    @media (max-width: 390px){
+      .grid{ gap:6px; padding: 8px; }
+      .cell{ height: 58px; padding: 7px; }
+      .cell-inner{ grid-template-columns: 20px 1fr; gap:6px; }
+      .dot6{ grid-template-columns: repeat(3, 9px); grid-auto-rows: 9px; gap:3px; }
+      .dot{ width:9px; height:9px; }
+      .dow div{ font-size: 11px; padding: 8px 4px; }
+      .banner-title{ font-size: 19px; }
     }
   </style>
 </head>
@@ -324,8 +643,19 @@
 <div class="wrap">
 
   <div class="banner" id="banner">
-    <div class="banner-text">
+    <div class="banner-left">
       <div class="banner-title" id="bannerTitle">Pick a character</div>
+
+      <div class="banner-subrow">
+        <button class="modebtn active" id="btnMy" type="button">
+          <span class="icon">👤</span>
+          <span>My Availability</span>
+        </button>
+        <button class="modebtn" id="btnGroup" type="button">
+          <span class="icon">👥</span>
+          <span>Group Availability</span>
+        </button>
+      </div>
     </div>
 
     <div class="banner-right">
@@ -340,8 +670,9 @@
   <div class="monthbar">
     <div class="month-title" id="monthTitle">
       <span id="monthLabel"></span>
-      <span class="loading-tag" id="loadingTag" style="display:none;">Loading…</span>
+      <span class="loading-tag" id="loadingTag">Loading…</span>
     </div>
+
     <div class="navbtns">
       <button class="navbtn" id="prev" type="button" aria-label="Previous month">‹</button>
       <button class="navbtn" id="next" type="button" aria-label="Next month">›</button>
@@ -356,6 +687,7 @@
     <div class="grid" id="grid"></div>
   </div>
 
+  <!-- MY view actions -->
   <div class="actions" id="actions">
     <button class="action green" id="avail" disabled type="button">Available</button>
     <button class="action blue" id="virt" disabled type="button">Virtual Only</button>
@@ -363,300 +695,73 @@
     <button class="action red" id="unavail" disabled type="button">Unavailable</button>
     <button class="action clear" id="clearStatus" disabled type="button">Clear Status</button>
   </div>
+
+  <!-- GROUP legend -->
+  <div class="legend" id="legend">
+    <div style="font-weight:900; margin-bottom:6px;">How “best dates” are chosen</div>
+    <div>
+      Score per person: <b>Available</b> +3, <b>Virtual</b> +2, <b>Maybe</b> +1, <b>Unknown</b> 0, <b>Unavailable</b> −3.
+    </div>
+    <div style="margin-top:6px;">
+      Yellow glow = highest-scoring date(s) in the month <b>with at least 4 people weighed in</b>.
+    </div>
+    <div class="row">
+      <span class="chip">Green glow = confirmed date (per month)</span>
+      <span class="chip">Red tint + red day # = blocked date</span>
+    </div>
+  </div>
+
 </div>
 
-<!-- Modal -->
-<div class="modal-backdrop" id="modal">
+<!-- Character Modal -->
+<div class="modal-backdrop" id="modalChar">
   <div class="modal">
+    <button class="xbtn" id="closeChar" type="button">×</button>
     <h2>Who are you?</h2>
     <div class="char-grid" id="charGrid"></div>
   </div>
 </div>
 
-<script>
-(() => {
-  // =========================
-  // CONFIG: your deployed Apps Script Web App URL
-  // =========================
-  const API_URL  = "https://script.google.com/macros/s/AKfycbyUFvCmGOw89tDkzwk_Fkgt9aVbNZ9m7m5dBylSHIlR1d_I5b9zMtdIGpW30VNc1gQX4w/exec";
-  const GROUP_ID = "fearsomeforce"; // any string; must match what the script expects (it lowercases)
+<!-- Loading Overlay (for initial + month switch loads) -->
+<div class="overlay" id="overlay">
+  <div class="overlay-card" id="overlayText">Loading…</div>
+</div>
 
-  const CHARS = [
-    {id:"dandon", name:"Dandon", color:"#8C0A0A"},
-    {id:"jassa",  name:"Jassa",  color:"#4D1B5B"},
-    {id:"laurel", name:"Laurel", color:"#156D45"},
-    {id:"lia",    name:"Lia",    color:"#0F4116"},
-    {id:"lilli",  name:"Lilli",  color:"#DB0B91"},
-    {id:"silas",  name:"Silas",  color:"#A47D00"}
-  ];
+<!-- Group Date Modal -->
+<div class="modal-backdrop" id="modalGroupDate">
+  <div class="modal">
+    <button class="xbtn" id="closeGroupDate" type="button">×</button>
+    <h2 id="gdTitle">Wed, Dec 17</h2>
 
-  const STATUS_COLORS = {
-    available:"#22c55e",
-    virtual:"#3b82f6",
-    maybe:"#f59e0b",
-    unavailable:"#ef4444"
-  };
+    <div class="people-list" id="gdPeople"></div>
 
-  let currentChar = localStorage.getItem("char") || "";
-  let selected = new Set();
-  let month = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    <div class="g-actions" id="gdActions">
+      <button class="g-action g-block" id="btnBlockDate" type="button">🚫 Block date</button>
+      <button class="g-action g-confirm" id="btnConfirmDate" type="button">✅ Confirm date</button>
 
-  // cache for current month + current person
-  let monthData = {}; // {"YYYY-MM-DD": "available" | "virtual" | "maybe" | "unavailable"}
+      <button class="g-action g-clock" id="btnTime" type="button">🕒 Add a time</button>
+      <button class="g-action g-cancel" id="btnCancelConfirm" type="button">✖ Cancel confirmation</button>
 
-  let isLoading = false;
+      <button class="g-action g-unblock" id="btnUnblockDate" type="button">↻ Make date available</button>
+    </div>
+  </div>
+</div>
 
-  const grid = document.getElementById("grid");
-  const modal = document.getElementById("modal");
-  const banner = document.getElementById("banner");
-  const bannerTitle = document.getElementById("bannerTitle");
-  const monthLabel = document.getElementById("monthLabel");
-  const loadingTag = document.getElementById("loadingTag");
-  const selectedCount = document.getElementById("selectedCount");
-  const selectedPill = document.getElementById("selectedPill");
-  const clearSelectedX = document.getElementById("clearSelectedX");
-  const actions = document.getElementById("actions");
-  const calendar = document.getElementById("calendar");
-  const prevBtn = document.getElementById("prev");
-  const nextBtn = document.getElementById("next");
-  const changeBtn = document.getElementById("changeChar");
+<!-- Confirm Time Modal -->
+<div class="modal-backdrop" id="modalTime">
+  <div class="modal">
+    <button class="time-check" id="timeSave" type="button" title="Save">✓</button>
+    <h2>Confirming December Date</h2>
 
-  const pad = n => String(n).padStart(2,"0");
-  const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    <div class="timebox">
+      <div class="time-date" id="timeDateLabel">Wed, Dec 12</div>
+      <input class="time-input" id="timeInput" type="text" placeholder="what time? (Optional)" />
+    </div>
+  </div>
+</div>
 
-  function monthParam(d){
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
-  }
+<div class="toast" id="toast">Saved</div>
 
-  function setLoading(on){
-    isLoading = on;
-    loadingTag.style.display = on ? "inline" : "none";
-    calendar.style.opacity = on ? 0.7 : 1;
-
-    // Disable navigation & change while loading to avoid race-y weirdness
-    prevBtn.disabled = on;
-    nextBtn.disabled = on;
-    changeBtn.disabled = on;
-
-    // Also disable status buttons while loading
-    document.querySelectorAll(".action").forEach(b => b.disabled = true);
-  }
-
-  function renderBanner(){
-    const c = CHARS.find(x=>x.id===currentChar);
-
-    if(!c){
-      bannerTitle.textContent = "Pick a character";
-      banner.style.background = "linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02))";
-      banner.style.borderColor = "rgba(255,255,255,.10)";
-      selectedPill.style.background = "rgba(255,255,255,.10)";
-      return;
-    }
-
-    bannerTitle.textContent = `${c.name}'s Availability`;
-    banner.style.background = c.color;
-    banner.style.borderColor = "rgba(255,255,255,.18)";
-    selectedPill.style.background = "rgba(0,0,0,.18)";
-  }
-
-  function renderCalendar(){
-    grid.innerHTML="";
-    monthLabel.textContent = month.toLocaleString(undefined,{month:"long",year:"numeric"});
-
-    const firstDow = new Date(month.getFullYear(), month.getMonth(), 1).getDay();
-    const daysInMonth = new Date(month.getFullYear(), month.getMonth()+1, 0).getDate();
-
-    for(let i=0;i<42;i++){
-      const day = i - firstDow + 1;
-      const cell = document.createElement("div");
-
-      if(day<1 || day>daysInMonth){
-        cell.className="cell blank";
-        grid.appendChild(cell);
-        continue;
-      }
-
-      const date = new Date(month.getFullYear(), month.getMonth(), day);
-      const key = ymd(date);
-
-      cell.className="cell";
-      if(selected.has(key)) cell.classList.add("selected");
-
-      cell.innerHTML=`<div class="num">${day}</div>`;
-
-      const status = monthData[key];
-      if(status){
-        const dot=document.createElement("div");
-        dot.className="status-chip";
-        dot.style.background=STATUS_COLORS[status] || "transparent";
-        cell.appendChild(dot);
-      }
-
-      cell.onclick=()=>{
-        if(isLoading) return;
-        if(!currentChar){ modal.style.display="flex"; return; }
-        selected.has(key) ? selected.delete(key) : selected.add(key);
-        updateActions();
-        renderCalendar();
-      };
-
-      grid.appendChild(cell);
-    }
-  }
-
-  function updateActions(){
-    selectedCount.textContent =
-      selected.size === 1 ? "1 date selected" : `${selected.size} dates selected`;
-
-    clearSelectedX.style.display = selected.size > 0 ? "flex" : "none";
-
-    const enable = selected.size>0 && !!currentChar && !isLoading;
-    actions.classList.add("show");
-    document.querySelectorAll(".action").forEach(b => b.disabled = !enable);
-  }
-
-  function clearSelected(){
-    selected.clear();
-    updateActions();
-    renderCalendar();
-  }
-
-  // =========================
-  // API calls (Apps Script)
-  // =========================
-  async function apiGetMonth(){
-    const mp = monthParam(month);
-    const url = `${API_URL}?groupId=${encodeURIComponent(GROUP_ID)}&month=${encodeURIComponent(mp)}`;
-
-    const res = await fetch(url, { method: "GET" });
-    if(!res.ok) throw new Error(`GET failed (${res.status})`);
-    const json = await res.json();
-
-    // Convert list -> map for this person only
-    const map = {};
-    for(const row of (json.availability || [])){
-      if(row.personId === currentChar){
-        map[row.date] = row.status;
-      }
-    }
-    return map;
-  }
-
-  async function apiSetStatusBulk(dates, statusOrNull){
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type":"application/json" },
-      body: JSON.stringify({
-        action: "setStatusBulk",
-        groupId: GROUP_ID,
-        personId: currentChar,
-        dates,
-        status: statusOrNull // string OR null to clear
-      })
-    });
-    if(!res.ok) throw new Error(`POST failed (${res.status})`);
-    return await res.json();
-  }
-
-  async function refreshMonthAndRender(){
-    if(!currentChar) return;
-    setLoading(true);
-    try{
-      monthData = await apiGetMonth();
-    } finally {
-      setLoading(false);
-      renderBanner();
-      updateActions();
-      renderCalendar();
-    }
-  }
-
-  async function applyStatus(status){
-    if(isLoading) return;
-    if(!currentChar || selected.size === 0) return;
-
-    const dates = Array.from(selected);
-    setLoading(true);
-    try{
-      await apiSetStatusBulk(dates, status); // status can be string or null
-      selected.clear();
-      monthData = await apiGetMonth();
-    } catch (e){
-      console.error(e);
-      alert("Could not save to Google Sheets. (Check Apps Script deployment + sheet headers.)");
-    } finally {
-      setLoading(false);
-      renderBanner();
-      updateActions();
-      renderCalendar();
-    }
-  }
-
-  // Buttons
-  document.getElementById("avail").onclick=()=>applyStatus("available");
-  document.getElementById("virt").onclick=()=>applyStatus("virtual");
-  document.getElementById("maybe").onclick=()=>applyStatus("maybe");
-  document.getElementById("unavail").onclick=()=>applyStatus("unavailable");
-  document.getElementById("clearStatus").onclick=()=>applyStatus(null);
-
-  prevBtn.onclick=async ()=>{
-    if(isLoading) return;
-    month=new Date(month.getFullYear(),month.getMonth()-1,1);
-    clearSelected();
-    await refreshMonthAndRender();
-  };
-
-  nextBtn.onclick=async ()=>{
-    if(isLoading) return;
-    month=new Date(month.getFullYear(),month.getMonth()+1,1);
-    clearSelected();
-    await refreshMonthAndRender();
-  };
-
-  changeBtn.onclick=()=>{
-    if(isLoading) return;
-    modal.style.display="flex";
-  };
-
-  clearSelectedX.onclick = clearSelected;
-
-  // Modal buttons
-  const cg=document.getElementById("charGrid");
-  cg.innerHTML = "";
-  CHARS.forEach(c=>{
-    const b=document.createElement("button");
-    b.className="char-btn";
-    b.textContent=c.name;
-    b.style.background=c.color;
-    b.type="button";
-    b.onclick=async ()=>{
-      if(isLoading) return;
-      currentChar=c.id;
-      localStorage.setItem("char",c.id);
-      selected.clear();
-      modal.style.display="none";
-      renderBanner();
-      updateActions();
-      renderCalendar();
-      await refreshMonthAndRender();
-    };
-    cg.appendChild(b);
-  });
-
-  // Init
-  if(currentChar){
-    modal.style.display="none";
-    renderBanner();
-    updateActions();
-    renderCalendar();
-    refreshMonthAndRender();
-  } else {
-    modal.style.display="flex";
-    renderBanner();
-    updateActions();
-    renderCalendar();
-  }
-})();
-</script>
+<script src="./app.js"></script>
 </body>
 </html>

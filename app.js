@@ -6,8 +6,8 @@
    ============================================================================ */
 
 /*** 1) CONFIG — PASTE YOUR SUPABASE VALUES HERE ********************************/
-const SUPABASE_URL = "PASTE_YOUR_SUPABASE_URL_HERE";     // e.g. https://oafvjbtxcymogqnledns.supabase.co
-const SUPABASE_ANON_KEY = "PASTE_YOUR_SUPABASE_ANON_KEY_HERE"; // e.g. eyJhbGciOi...
+const SUPABASE_URL = "https://oafvjbtxcymogqnledns.supabase.co";     // e.g. https://oafvjbtxcymogqnledns.supabase.co
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hZnZqYnR4Y3ltb2dxbmxlZG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxODIzODUsImV4cCI6MjA4MTc1ODM4NX0.8a22dPhl5x13wyh2e2aoHsp3xAogL-1rJRt48i7Aq2o"; // e.g. eyJhbGciOi...
 
 /*** 2) APP CONFIG **************************************************************/
 const GROUP_ID = "fearsomeforce";

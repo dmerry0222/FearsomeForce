@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
   <title>D&D Availability</title>
-
-  <!-- Supabase JS (UMD build) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     :root{
@@ -17,56 +17,33 @@
       --shadow: 0 10px 30px rgba(0,0,0,.45);
       --radius:16px;
       --cell-radius:14px;
-
-      --green:#22c55e;
-      --blue:#3b82f6;
-      --yellow:#f59e0b;
-      --red:#ef4444;
-
-      --darkBtn:#141b24;
-      --darkBtnBorder: rgba(255,255,255,.12);
-      --darkBtnHover: rgba(255,255,255,.06);
-
-      --bestGlow: rgba(245, 158, 11, .18);  /* yellow-ish */
-      --confirmGlow: rgba(34, 197, 94, .18); /* green-ish */
-      --blockedFill: rgba(239, 68, 68, .10); /* red-ish */
     }
 
     *{ box-sizing:border-box; }
-
     body{
       margin:0;
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
       background: radial-gradient(1200px 700px at 50% -200px, #1f2937 0%, var(--bg) 55%, #05070a 100%);
       color:var(--text);
       -webkit-tap-highlight-color: transparent;
+      padding-bottom: env(safe-area-inset-bottom);
     }
 
-    .wrap{
-      max-width: 920px;
-      margin: 0 auto;
-      padding: 14px 14px 28px;
-    }
+    .wrap{ max-width: 900px; margin: 0 auto; padding: 14px 14px 28px; }
 
     /* Banner */
     .banner{
       border-radius: var(--radius);
-      padding: 14px 16px 12px;
+      padding: 14px 16px;
       background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
       border: 1px solid var(--line);
       box-shadow: var(--shadow);
       display:flex;
-      align-items:flex-start;
+      align-items:center;
       gap:12px;
       margin-bottom: 12px;
-      transition: background .15s ease, border-color .15s ease;
-    }
-
-    .banner-left{
       min-width: 0;
-      flex: 1 1 auto;
     }
-
     .banner-title{
       font-weight: 900;
       font-size: 20px;
@@ -75,54 +52,15 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      max-width: 60vw;
     }
-
-    .banner-subrow{
-      margin-top: 10px;
-      display:flex;
-      gap:10px;
-      align-items:center;
-      flex-wrap: wrap;
-    }
-
-    .modebtn{
-      flex: 1 1 160px;
-      height: 44px;
-      border-radius: 14px;
-      border: 1px solid var(--darkBtnBorder);
-      background: rgba(255,255,255,.03);
-      color: #fff;
-      font-weight: 900;
-      letter-spacing: .2px;
-      cursor:pointer;
-      user-select:none;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      gap:10px;
-    }
-    .modebtn:hover{ background: var(--darkBtnHover); }
-    .modebtn.active{
-      background: var(--darkBtn);
-      border-color: rgba(255,255,255,.18);
-    }
-
-    .icon{
-      width: 18px;
-      height: 18px;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      opacity: .95;
-    }
-
+    .banner-text{ display:flex; flex-direction:column; min-width:0; }
     .banner-right{
-      flex: 0 0 auto;
+      margin-left:auto;
       display:flex;
       gap:8px;
       align-items:center;
-      font-size:12px;
-      margin-top: 2px;
+      flex: 0 0 auto;
     }
 
     .pill{
@@ -135,9 +73,9 @@
       gap:8px;
       user-select:none;
       color: #fff;
+      font-size:12px;
       white-space: nowrap;
     }
-
     .pill-x{
       width: 22px;
       height: 22px;
@@ -152,8 +90,6 @@
       font-weight: 900;
       line-height: 1;
     }
-    .pill-x:hover{ background: rgba(0,0,0,.26); }
-    .pill-x:active{ transform: translateY(1px); }
 
     button.reset{
       background: rgba(255,255,255,.10);
@@ -163,37 +99,47 @@
       border-radius: 999px;
       cursor:pointer;
       user-select:none;
-      font-weight: 900;
+      white-space: nowrap;
     }
-    button.reset:hover{ background: rgba(255,255,255,.14); }
     button.reset:active{ transform: translateY(1px); }
-    button.reset:disabled{ opacity:.55; cursor:not-allowed; }
 
-    /* Month header */
+    /* Mode toggle row */
+    .modebar{
+      display:flex;
+      gap:10px;
+      margin: 10px 0 10px;
+    }
+    .modebtn{
+      flex:1 1 0;
+      height:48px;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      font-weight: 900;
+      cursor:pointer;
+    }
+    .modebtn.active{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.18);
+    }
+
+    /* Month bar */
     .monthbar{
       display:flex;
       align-items:center;
       justify-content: space-between;
-      margin: 12px 0;
+      margin: 10px 0;
       gap: 10px;
     }
-
     .month-title{
       font-size: 18px;
-      font-weight: 900;
+      font-weight: 850;
       letter-spacing: .2px;
       display:flex;
       align-items: baseline;
       gap: 10px;
-      min-width: 0;
-    }
-
-    .loading-tag{
-      font-size: 12px;
-      color: var(--muted);
-      font-weight: 900;
-      display:none;
-      white-space: nowrap;
+      min-width:0;
     }
 
     .navbtns{ display:flex; gap:8px; flex: 0 0 auto; }
@@ -208,9 +154,7 @@
       cursor:pointer;
       user-select:none;
     }
-    .navbtn:hover{ background: rgba(255,255,255,.06); }
     .navbtn:active{ transform: translateY(1px); }
-    .navbtn:disabled{ opacity:.55; cursor:not-allowed; }
 
     /* Calendar */
     .calendar{
@@ -220,12 +164,12 @@
       background: rgba(255,255,255,.03);
       box-shadow: var(--shadow);
     }
-
     .dow{
       display:grid;
-      grid-template-columns: repeat(7, minmax(0, 1fr));
+      grid-template-columns: repeat(7, 1fr);
       border-bottom:1px solid var(--line);
       background: rgba(255,255,255,.03);
+      min-width: 0;
     }
     .dow div{
       padding:10px 6px;
@@ -233,17 +177,20 @@
       font-size:12px;
       color:var(--muted);
       letter-spacing: .3px;
-      min-width: 0;
+      white-space: nowrap;
     }
 
+    /* IMPORTANT: Use minmax(0,1fr) so Safari iPhone doesn't overflow and hide Sat */
     .grid{
       display:grid;
       grid-template-columns: repeat(7, minmax(0, 1fr));
       padding:10px;
-      gap:8px;
+      gap:0;
+      min-width: 0;
     }
 
     .cell{
+      height:54px;
       border-radius: var(--cell-radius);
       border:1px solid rgba(255,255,255,.08);
       background: rgba(0,0,0,.15);
@@ -251,44 +198,25 @@
       position:relative;
       cursor:pointer;
       user-select:none;
+      overflow: hidden;
       min-width: 0;
-      height: 62px;
-      overflow:hidden;
     }
     .cell:hover{ background: rgba(255,255,255,.04); }
     .cell:active{ transform: translateY(1px); }
     .cell.blank{ background:transparent; border:none; cursor:default; }
+
+    .num{
+      font-size:12px;
+      font-weight:750;
+      opacity:.95;
+      line-height: 1;
+    }
 
     .cell.selected{
       outline:2px solid rgba(255,255,255,.40);
       outline-offset:1px;
     }
 
-    /* persistent treatments across BOTH views */
-    .cell.best{
-      box-shadow: 0 0 0 9999px var(--bestGlow) inset;
-      border-color: rgba(245,158,11,.35);
-    }
-    .cell.confirmed{
-      box-shadow: 0 0 0 9999px var(--confirmGlow) inset;
-      border-color: rgba(34,197,94,.35);
-    }
-    .cell.blocked{
-      box-shadow: 0 0 0 9999px var(--blockedFill) inset;
-      border-color: rgba(239,68,68,.30);
-    }
-
-    /* day number */
-    .num{
-      font-size:12px;
-      font-weight:900;
-      opacity:.95;
-    }
-    .num.blockedNum{
-      color: rgba(239,68,68,.95);
-    }
-
-    /* MY view: single status dot */
     .status-chip{
       position:absolute;
       left:8px;
@@ -298,39 +226,68 @@
       border-radius:50%;
     }
 
-    /* GROUP view layout: left number, right sextuplet dots */
-    .cell-inner{
-      display:grid;
-      grid-template-columns: 22px 1fr;
-      align-items:center;
-      gap:8px;
-      height: 100%;
+    /* Persistent decision styling on BOTH views */
+    .cell.blocked{
+      background: rgba(239, 68, 68, 0.08);
+      border-color: rgba(239, 68, 68, 0.22);
+    }
+    .num-blocked{ color: #ef4444; }
+
+    .cell.best{
+      box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.55) inset, 0 0 18px rgba(245, 158, 11, 0.25);
+    }
+    .cell.confirmed{
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.65) inset, 0 0 22px rgba(34, 197, 94, 0.25);
     }
 
-    .dot6{
+    /* Group cell layout: date lane + dot lane (no overlap) */
+    .groupcell{
+      padding:8px;
+    }
+    .groupcell-top{
+      display:grid;
+      grid-template-columns: 18px 1fr;
+      align-items:start;
+      gap: 6px;
+      height:100%;
+      min-width: 0;
+    }
+
+    .dotgrid{
       display:grid;
       grid-template-columns: repeat(3, 10px);
       grid-auto-rows: 10px;
-      gap:4px;
-      justify-content:flex-end;
-      align-content:center;
+      gap: 4px 4px;
+      justify-content: start;
+      align-content: start;
+      padding-top: 0px;
+      min-width:0;
     }
 
     .dot{
       width:10px;
       height:10px;
-      border-radius: 999px;
+      border-radius: 50%;
       border:1px solid rgba(255,255,255,.18);
-      background: rgba(255,255,255,.03); /* empty */
+      background: transparent;
+      display:inline-block;
+    }
+    .dot.empty{
+      background: transparent;
+      border-color: rgba(255,255,255,.14);
+      opacity: 0.55;
+    }
+    .dot.filled{
+      opacity: 1;
     }
 
-    /* Actions (MY view) */
+    /* Actions buttons (My Availability status set) */
     .actions{
       margin-top:14px;
       display:grid;
+      gap:10px;
       grid-template-columns:1fr 1fr;
       grid-auto-rows: 52px;
-      gap:10px;
     }
 
     .action{
@@ -346,47 +303,15 @@
     .action:disabled{ opacity:.45; cursor:not-allowed; }
     .action:active{ transform: translateY(1px); }
 
-    .green{ background:var(--green); }
-    .blue{ background:var(--blue); }
-    .yellow{ background:var(--yellow); }
-    .red{ background:var(--red); }
-
+    .green{ background:#22c55e; }
+    .blue{ background:#3b82f6; }
+    .yellow{ background:#f59e0b; }
+    .red{ background:#ef4444; }
     .clear{
       grid-column: 1 / span 2;
       background: rgba(255,255,255,.12);
       color: #ffffff;
       border: 1px solid rgba(255,255,255,.18);
-    }
-    .clear:hover{ background: rgba(255,255,255,.16); }
-
-    /* Legend (group view) */
-    .legend{
-      margin-top: 14px;
-      padding: 12px 14px;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.03);
-      box-shadow: var(--shadow);
-      display:none;
-      font-size: 13px;
-      color: rgba(255,255,255,.85);
-      line-height: 1.35;
-    }
-    .legend.show{ display:block; }
-    .legend .row{
-      display:flex;
-      gap:10px;
-      flex-wrap: wrap;
-      align-items:center;
-      margin-top: 8px;
-    }
-    .legend .chip{
-      padding: 6px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.14);
-      background: rgba(0,0,0,.18);
-      font-weight: 900;
-      white-space: nowrap;
     }
 
     /* Modal base */
@@ -401,7 +326,6 @@
       padding:18px;
       z-index:999;
     }
-
     .modal{
       width:min(560px, 100%);
       border-radius:20px;
@@ -409,38 +333,41 @@
       border:1px solid var(--line);
       box-shadow: var(--shadow);
       padding:16px;
-      position:relative;
+      position: relative;
     }
-
     .modal h2{
-      margin: 0 0 12px;
+      margin: 0 0 10px;
       font-size:18px;
       letter-spacing: .2px;
-      padding-right: 42px;
+    }
+    .modal-title{
+      font-weight:900;
+      font-size:18px;
+      margin: 0 0 6px;
+    }
+    .modal-sub{
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 13px;
+      margin: 0 0 12px;
     }
 
-    .xbtn{
+    /* X close */
+    .modal-x{
       position:absolute;
-      top:12px;
       right:12px;
+      top:12px;
       width:36px;
       height:36px;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,.16);
-      background: rgba(0,0,0,.20);
-      color:#fff;
-      cursor:pointer;
-      font-size:20px;
+      border-radius: 10px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: #fff;
       font-weight: 900;
-      line-height: 1;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+      cursor:pointer;
     }
-    .xbtn:hover{ background: rgba(0,0,0,.28); }
-    .xbtn:active{ transform: translateY(1px); }
 
-    /* Character picker */
+    /* Char select modal buttons */
     .char-grid{ display:grid; grid-template-columns:1fr; gap:10px; }
     @media (min-width:520px){ .char-grid{ grid-template-columns:1fr 1fr; } }
     .char-btn{
@@ -459,309 +386,243 @@
       color:#ffffff;
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.15), 0 6px 18px rgba(0,0,0,.35);
     }
-    .char-btn:hover{ filter: brightness(1.05); }
-    .char-btn:active{ transform: translateY(1px); filter: brightness(0.95); }
+    .char-btn:active{ transform: translateY(1px); }
 
-    /* Group date modal */
-    .people-list{
-      margin-top: 10px;
-      display:flex;
-      flex-direction:column;
-      gap:8px;
-    }
-
-    .person-line{
-      display:flex;
-      gap:10px;
-      align-items:baseline;
-      flex-wrap: wrap;
-      border: 1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.16);
-      padding: 10px 12px;
-      border-radius: 14px;
-    }
-    .pname{
-      font-weight: 900;
-      letter-spacing:.2px;
-      white-space: nowrap;
-    }
-    .pstatus{
-      color: rgba(255,255,255,.92);
-      font-weight: 700;
-      overflow-wrap:anywhere;
-    }
-
-    .g-actions{
-      margin-top: 12px;
+    /* Group detail list */
+    .person-list{ display:flex; flex-direction: column; gap:10px; margin: 10px 0 14px; }
+    .person-row{
       display:grid;
       grid-template-columns: 1fr 1fr;
-      gap:10px;
+      gap: 10px;
+      align-items:center;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.18);
+    }
+    .person-name{
+      font-weight: 950;
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+    .person-status{
+      color:#ffffff;
+      font-weight: 800;
+      text-align:right;
     }
 
-    .g-action{
-      height: 52px;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,.12);
-      font-weight: 900;
-      cursor:pointer;
-      user-select:none;
-      color:#0b0f14;
-      letter-spacing: .2px;
+    .modal-actions{
       display:flex;
+      gap:10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .mbtn{
+      height:48px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      font-weight: 950;
+      cursor:pointer;
+      padding: 0 14px;
+      color: #0b0f14;
+      user-select:none;
+      display:inline-flex;
       align-items:center;
       justify-content:center;
-      gap:10px;
+      gap:8px;
     }
-    .g-action:active{ transform: translateY(1px); }
+    .mbtn:active{ transform: translateY(1px); }
 
-    .g-block{ background: var(--red); }
-    .g-unblock{
-      background: rgba(255,255,255,.12);
-      color:#fff;
-      border: 1px solid rgba(255,255,255,.18);
-    }
-    .g-confirm{ background: var(--green); }
-    .g-clock{
-      grid-column: 1 / span 2;
-      background: rgba(255,255,255,.12);
-      color:#fff;
-      border: 1px solid rgba(255,255,255,.18);
-    }
-    .g-cancel{
-      grid-column: 1 / span 2;
+    .mbtn-red{ background:#ef4444; color:#0b0f14; }
+    .mbtn-gold{ background:#f59e0b; color:#0b0f14; }
+    .mbtn-green{ background:#22c55e; color:#0b0f14; }
+    .mbtn-dark{
       background: rgba(255,255,255,.10);
+      color:#ffffff;
+      border-color: rgba(255,255,255,.18);
+    }
+
+    /* Time modal input */
+    .textline{
+      width:100%;
+      height:48px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.25);
       color:#fff;
-      border: 1px solid rgba(255,255,255,.16);
+      padding: 0 14px;
+      font-weight: 800;
+      outline: none;
     }
 
     /* Loading overlay */
-    .overlay{
-      position: fixed;
+    .loading-overlay{
+      position:fixed;
       inset:0;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(6px);
       display:none;
       align-items:center;
       justify-content:center;
       z-index: 1200;
-      background: rgba(0,0,0,.55);
-      backdrop-filter: blur(6px);
-      padding: 18px;
     }
-    .overlay-card{
-      width:min(420px, 100%);
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,.16);
-      background: rgba(17,24,39,.95);
-      box-shadow: var(--shadow);
-      padding: 16px;
-      text-align:center;
-      font-weight: 900;
-      letter-spacing: .2px;
-    }
-
-    /* Confirm time modal */
-    .timebox{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      margin-top: 8px;
-    }
-    .time-title{
-      font-weight: 900;
-      font-size: 16px;
-    }
-    .time-date{
-      color: rgba(255,255,255,.85);
-      font-weight: 800;
-      margin-top: -4px;
-    }
-    .time-input{
-      width: 100%;
-      border-radius: 14px;
+    .loading-card{
+      padding: 14px 16px;
+      border-radius: 16px;
       border: 1px solid rgba(255,255,255,.14);
-      background: rgba(0,0,0,.18);
-      color: #fff;
-      padding: 14px 12px;
-      font-size: 16px;
-      font-weight: 800;
-      outline: none;
-    }
-    .time-input::placeholder{ color: rgba(255,255,255,.55); font-weight: 800; }
-
-    .time-check{
-      position:absolute;
-      top:12px;
-      right:12px;
-      width: 44px;
-      height: 44px;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,.16);
-      background: rgba(34,197,94,.20);
+      background: rgba(17,24,39,.92);
       color:#fff;
-      cursor:pointer;
-      font-size: 20px;
       font-weight: 900;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+      box-shadow: var(--shadow);
     }
-    .time-check:hover{ background: rgba(34,197,94,.28); }
-    .time-check:active{ transform: translateY(1px); }
 
-    /* Toast */
+    /* Toast (bottom) */
     .toast{
       position: fixed;
       left: 50%;
-      bottom: 18px;
+      bottom: calc(16px + env(safe-area-inset-bottom));
       transform: translateX(-50%);
-      padding: 10px 12px;
+      padding: 10px 14px;
       border-radius: 999px;
       border: 1px solid rgba(255,255,255,.16);
-      background: rgba(0,0,0,.50);
-      color: #fff;
+      background: rgba(17,24,39,.95);
+      color:#fff;
       font-weight: 900;
-      letter-spacing: .2px;
       display:none;
       z-index: 1300;
-      max-width: calc(100vw - 24px);
-      text-align:center;
+      box-shadow: var(--shadow);
+      max-width: calc(100vw - 28px);
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
     }
 
-    /* Mobile tuning: smaller gap so 7 columns fit */
-    @media (max-width: 390px){
-      .grid{ gap:6px; padding: 8px; }
-      .cell{ height: 58px; padding: 7px; }
-      .cell-inner{ grid-template-columns: 20px 1fr; gap:6px; }
-      .dot6{ grid-template-columns: repeat(3, 9px); grid-auto-rows: 9px; gap:3px; }
+    /* Slightly tighter on very small screens */
+    @media (max-width: 380px){
+      .cell{ height:52px; padding:7px; }
+      .dotgrid{ gap:3px 3px; }
       .dot{ width:9px; height:9px; }
-      .dow div{ font-size: 11px; padding: 8px 4px; }
-      .banner-title{ font-size: 19px; }
+      .dotgrid{ grid-template-columns: repeat(3, 9px); grid-auto-rows: 9px; }
+      .groupcell-top{ grid-template-columns: 16px 1fr; }
     }
   </style>
 </head>
 
 <body>
-<div class="wrap">
+  <div class="wrap">
 
-  <div class="banner" id="banner">
-    <div class="banner-left">
-      <div class="banner-title" id="bannerTitle">Pick a character</div>
+    <!-- Banner -->
+    <div class="banner" id="banner">
+      <div class="banner-text">
+        <div class="banner-title" id="bannerTitle">Pick a character</div>
+      </div>
 
-      <div class="banner-subrow">
-        <button class="modebtn active" id="btnMy" type="button">
-          <span class="icon">👤</span>
-          <span>My Availability</span>
-        </button>
-        <button class="modebtn" id="btnGroup" type="button">
-          <span class="icon">👥</span>
-          <span>Group Availability</span>
-        </button>
+      <div class="banner-right">
+        <span class="pill" id="selectedPill">
+          <span id="selectedCount">0 dates selected</span>
+          <span class="pill-x" id="clearSelectedX" title="Clear selected">×</span>
+        </span>
+        <button class="reset" id="changeChar" type="button">Change</button>
       </div>
     </div>
 
-    <div class="banner-right">
-      <span class="pill" id="selectedPill">
-        <span id="selectedCount">0 dates selected</span>
-        <span class="pill-x" id="clearSelectedX" title="Clear selected">×</span>
-      </span>
-      <button class="reset" id="changeChar" type="button">Change</button>
+    <!-- Mode toggle -->
+    <div class="modebar">
+      <button class="modebtn" id="modeMy" type="button">My Availability</button>
+      <button class="modebtn" id="modeGroup" type="button">Group View</button>
+    </div>
+
+    <!-- Month nav -->
+    <div class="monthbar">
+      <div class="month-title">
+        <span id="monthLabel"></span>
+      </div>
+      <div class="navbtns">
+        <button class="navbtn" id="prev" type="button" aria-label="Previous month">‹</button>
+        <button class="navbtn" id="next" type="button" aria-label="Next month">›</button>
+      </div>
+    </div>
+
+    <!-- Calendar -->
+    <div class="calendar" id="calendar">
+      <div class="dow">
+        <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+      </div>
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <!-- Actions (My mode status buttons) -->
+    <div class="actions" id="actions">
+      <button class="action green" id="avail" disabled type="button">Available</button>
+      <button class="action blue" id="virt" disabled type="button">Virtual Only</button>
+      <button class="action yellow" id="maybe" disabled type="button">Maybe</button>
+      <button class="action red" id="unavail" disabled type="button">Unavailable</button>
+      <button class="action clear" id="clearStatus" disabled type="button">Clear Status</button>
+    </div>
+
+  </div>
+
+  <!-- Character picker modal -->
+  <div class="modal-backdrop" id="modalPickChar">
+    <div class="modal">
+      <h2>Who are you?</h2>
+      <div class="char-grid" id="charGrid"></div>
     </div>
   </div>
 
-  <div class="monthbar">
-    <div class="month-title" id="monthTitle">
-      <span id="monthLabel"></span>
-      <span class="loading-tag" id="loadingTag">Loading…</span>
-    </div>
+  <!-- Group date detail modal -->
+  <div class="modal-backdrop" id="groupDetailModal">
+    <div class="modal">
+      <button class="modal-x" id="groupDetailClose" type="button" aria-label="Close">×</button>
 
-    <div class="navbtns">
-      <button class="navbtn" id="prev" type="button" aria-label="Previous month">‹</button>
-      <button class="navbtn" id="next" type="button" aria-label="Next month">›</button>
-    </div>
-  </div>
+      <div class="modal-title" id="groupDetailTitle">Wed, Dec 17</div>
 
-  <div class="calendar" id="calendar">
-    <div class="dow">
-      <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div>
-      <div>Thu</div><div>Fri</div><div>Sat</div>
-    </div>
-    <div class="grid" id="grid"></div>
-  </div>
+      <div class="person-list" id="groupDetailList"></div>
 
-  <!-- MY view actions -->
-  <div class="actions" id="actions">
-    <button class="action green" id="avail" disabled type="button">Available</button>
-    <button class="action blue" id="virt" disabled type="button">Virtual Only</button>
-    <button class="action yellow" id="maybe" disabled type="button">Maybe</button>
-    <button class="action red" id="unavail" disabled type="button">Unavailable</button>
-    <button class="action clear" id="clearStatus" disabled type="button">Clear Status</button>
-  </div>
+      <div class="modal-actions">
+        <button class="mbtn mbtn-red" id="btnBlockDate" type="button">Block date</button>
+        <button class="mbtn mbtn-dark" id="btnUnblockDate" type="button" style="display:none;">↺ Make date available</button>
 
-  <!-- GROUP legend -->
-  <div class="legend" id="legend">
-    <div style="font-weight:900; margin-bottom:6px;">How “best dates” are chosen</div>
-    <div>
-      Score per person: <b>Available</b> +3, <b>Virtual</b> +2, <b>Maybe</b> +1, <b>Unknown</b> 0, <b>Unavailable</b> −3.
-    </div>
-    <div style="margin-top:6px;">
-      Yellow glow = highest-scoring date(s) in the month <b>with at least 4 people weighed in</b>.
-    </div>
-    <div class="row">
-      <span class="chip">Green glow = confirmed date (per month)</span>
-      <span class="chip">Red tint + red day # = blocked date</span>
+        <button class="mbtn mbtn-green" id="btnConfirmDate" type="button">Confirm date</button>
+        <button class="mbtn mbtn-dark" id="btnCancelConfirm" type="button" style="display:none;">✕ Cancel confirmation</button>
+
+        <button class="mbtn mbtn-dark" id="btnEditTime" type="button" style="display:none;">Add a time</button>
+      </div>
     </div>
   </div>
 
-</div>
+  <!-- Time entry modal (centered, not toast) -->
+  <div class="modal-backdrop" id="timeModal">
+    <div class="modal">
+      <button class="modal-x" id="timeClose" type="button" aria-label="Close">×</button>
 
-<!-- Character Modal -->
-<div class="modal-backdrop" id="modalChar">
-  <div class="modal">
-    <button class="xbtn" id="closeChar" type="button">×</button>
-    <h2>Who are you?</h2>
-    <div class="char-grid" id="charGrid"></div>
-  </div>
-</div>
+      <div class="modal-title" id="timeModalTitle"><b>Confirming December Date</b></div>
+      <div class="modal-sub" id="timeModalSub">Wed, Dec 12</div>
 
-<!-- Loading Overlay (for initial + month switch loads) -->
-<div class="overlay" id="overlay">
-  <div class="overlay-card" id="overlayText">Loading…</div>
-</div>
+      <input
+        class="textline"
+        id="timeInput"
+        type="text"
+        placeholder="what time? (Optional)"
+        autocomplete="off"
+      />
 
-<!-- Group Date Modal -->
-<div class="modal-backdrop" id="modalGroupDate">
-  <div class="modal">
-    <button class="xbtn" id="closeGroupDate" type="button">×</button>
-    <h2 id="gdTitle">Wed, Dec 17</h2>
-
-    <div class="people-list" id="gdPeople"></div>
-
-    <div class="g-actions" id="gdActions">
-      <button class="g-action g-block" id="btnBlockDate" type="button">🚫 Block date</button>
-      <button class="g-action g-confirm" id="btnConfirmDate" type="button">✅ Confirm date</button>
-
-      <button class="g-action g-clock" id="btnTime" type="button">🕒 Add a time</button>
-      <button class="g-action g-cancel" id="btnCancelConfirm" type="button">✖ Cancel confirmation</button>
-
-      <button class="g-action g-unblock" id="btnUnblockDate" type="button">↻ Make date available</button>
+      <div class="modal-actions" style="margin-top:12px;">
+        <button class="mbtn mbtn-green" id="timeSave" type="button">✓ Save</button>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- Confirm Time Modal -->
-<div class="modal-backdrop" id="modalTime">
-  <div class="modal">
-    <button class="time-check" id="timeSave" type="button" title="Save">✓</button>
-    <h2>Confirming December Date</h2>
-
-    <div class="timebox">
-      <div class="time-date" id="timeDateLabel">Wed, Dec 12</div>
-      <input class="time-input" id="timeInput" type="text" placeholder="what time? (Optional)" />
-    </div>
+  <!-- Loading overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-card" id="loadingText">Loading…</div>
   </div>
-</div>
 
-<div class="toast" id="toast">Saved</div>
+  <!-- Toast -->
+  <div class="toast" id="toast"><span id="toastText"></span></div>
 
-<script src="./app.js"></script>
+  <!-- App script -->
+  <script src="app.js"></script>
 </body>
 </html>

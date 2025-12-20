@@ -6,49 +6,42 @@
    ============================================================================ */
 
 /*** 1) CONFIG — PASTE YOUR SUPABASE VALUES HERE ********************************/
-const SUPABASE_URL = "https://oafvjbtxcymogqnledns.supabase.co";     // e.g. https://oafvjbtxcymogqnledns.supabase.co
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hZnZqYnR4Y3ltb2dxbmxlZG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxODIzODUsImV4cCI6MjA4MTc1ODM4NX0.8a22dPhl5x13wyh2e2aoHsp3xAogL-1rJRt48i7Aq2o"; // e.g. eyJhbGciOi...
+const SUPABASE_URL = "https://oafvjbtxcymogqnledns.supabase.co"; // <-- your Supabase project URL
+const SUPABASE_ANON_KEY =
+  "PASTE_YOUR_SUPABASE_ANON_KEY_HERE"; // <-- your anon public API key (JWT)
 
 /*** 2) APP CONFIG **************************************************************/
 const GROUP_ID = "fearsomeforce";
 
-/**
- * People: if you also created a public.people table, you *can* load from it later,
- * but this app will work fine with this fixed list (which matches your earlier UI).
- */
 const PEOPLE = [
   { id: "dandon", name: "Dandon", color: "#8C0A0A" },
-  { id: "jassa",  name: "Jassa",  color: "#4D1B5B" },
+  { id: "jassa", name: "Jassa", color: "#4D1B5B" },
   { id: "laurel", name: "Laurel", color: "#156D45" },
-  { id: "lia",    name: "Lia",    color: "#0F4116" },
-  { id: "lilli",  name: "Lilli",  color: "#DB0B91" },
-  { id: "silas",  name: "Silas",  color: "#A47D00" },
+  { id: "lia", name: "Lia", color: "#0F4116" },
+  { id: "lilli", name: "Lilli", color: "#DB0B91" },
+  { id: "silas", name: "Silas", color: "#A47D00" },
 ];
 
-// Status colors for dots / chips
 const STATUS_COLORS = {
-  available:   "#22c55e",
-  virtual:     "#3b82f6",
-  maybe:       "#f59e0b",
+  available: "#22c55e",
+  virtual: "#3b82f6",
+  maybe: "#f59e0b",
   unavailable: "#ef4444",
 };
 
 const SCORE = {
-  available:  3,
-  virtual:    2,
-  maybe:      1,
-  unknown:    0,
-  unavailable:-3,
+  available: 3,
+  virtual: 2,
+  maybe: 1,
+  unknown: 0,
+  unavailable: -3,
 };
 
-const WEIGHED_IN_MIN_FOR_BEST = 4; // star logic replaced by yellow aura best-day highlight
-const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const WEIGHED_IN_MIN_FOR_BEST = 4;
+const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/*** 3) DOM HOOKS ***************************************************************
- * This assumes your Index.html already has the same IDs from our previous build.
- * If any are missing, the app will still run but that feature won’t display.
- ******************************************************************************/
+/*** 3) DOM HOOKS **************************************************************/
 const $ = (sel) => document.querySelector(sel);
 const el = {
   banner: $("#banner"),
@@ -77,11 +70,9 @@ const el = {
   modalPick: $("#modalPickChar"),
   charGrid: $("#charGrid"),
 
-  // loading overlay (we use it for initial load + month changes)
   loadingOverlay: $("#loadingOverlay"),
   loadingText: $("#loadingText"),
 
-  // Group date detail modal
   groupDetailModal: $("#groupDetailModal"),
   groupDetailTitle: $("#groupDetailTitle"),
   groupDetailList: $("#groupDetailList"),
@@ -92,7 +83,6 @@ const el = {
   btnCancelConfirm: $("#btnCancelConfirm"),
   btnEditTime: $("#btnEditTime"),
 
-  // Confirm time modal
   timeModal: $("#timeModal"),
   timeModalTitle: $("#timeModalTitle"),
   timeModalSub: $("#timeModalSub"),
@@ -100,7 +90,6 @@ const el = {
   timeSave: $("#timeSave"),
   timeClose: $("#timeClose"),
 
-  // toast
   toast: $("#toast"),
   toastText: $("#toastText"),
 };
@@ -121,58 +110,90 @@ let mode = localStorage.getItem("mode") || "my"; // "my" | "group"
 let currentChar = localStorage.getItem("char") || "";
 let selected = new Set(); // YYYY-MM-DD strings (my view selection)
 
+// currentMonth is set during init from URL (step 1/2 below), defaulting to current month.
 let currentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
-// Cached month data
-// availabilityMap: { [dateKey]: { [person_id]: status } }
-let availabilityMap = Object.create(null);
-// myStatusMap: { [dateKey]: status } for currentChar
-let myStatusMap = Object.create(null);
-// decisionsMap: { [dateKey]: {is_blocked, is_confirmed, time_text} }
-let decisionsMap = Object.create(null);
+let availabilityMap = Object.create(null); // { [dateKey]: { [person_id]: status } }
+let myStatusMap = Object.create(null); // { [dateKey]: status }
+let decisionsMap = Object.create(null); // { [dateKey]: {is_blocked,is_confirmed,time_text} }
 
-// Pending write queue counts (for “syncing” feel)
 let pendingWrites = 0;
-
-// last opened date in group modal
 let activeGroupDateKey = null;
+
+// Which date are we editing time_text for?
+let timeModalTargetDateKey = null;
 
 /*** 5) UTIL *******************************************************************/
 const pad2 = (n) => String(n).padStart(2, "0");
-const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
 function monthStart(d) {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 }
 function monthEndExclusive(d) {
-  return new Date(d.getFullYear(), d.getMonth()+1, 1);
-}
-function monthKey(d) {
-  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;
+  return new Date(d.getFullYear(), d.getMonth() + 1, 1);
 }
 function parseYMD(s) {
-  const [y,m,dd] = s.split("-").map(Number);
-  return new Date(y, m-1, dd);
+  const [y, m, dd] = s.split("-").map(Number);
+  return new Date(y, m - 1, dd);
 }
 function dateTitleShort(dateKey) {
   const d = parseYMD(dateKey);
   return `${DOW[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
 }
-function isSameMonth(a, b) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
-}
-function showToast(msg, ms=1800) {
+function showToast(msg, ms = 1800) {
   if (!el.toast || !el.toastText) return;
   el.toastText.textContent = msg;
   el.toast.style.display = "flex";
   clearTimeout(showToast._t);
   showToast._t = setTimeout(() => (el.toast.style.display = "none"), ms);
 }
-
-function setLoading(on, text="Loading…") {
+function setLoading(on, text = "Loading…") {
   if (!el.loadingOverlay) return;
-  el.loadingText && (el.loadingText.textContent = text);
+  if (el.loadingText) el.loadingText.textContent = text;
   el.loadingOverlay.style.display = on ? "flex" : "none";
+}
+
+/*** 5.1) URL MONTH ROUTING (Steps 1, 2, 3) ************************************/
+/**
+ * Step 1: Read /MM_YYYY from the URL path (e.g., /DnDScheduler/02_2026)
+ * Returns a Date(year, month-1, 1) or null.
+ */
+function getMonthFromURL() {
+  const parts = window.location.pathname.split("/").filter(Boolean);
+  if (parts.length === 0) return null;
+  const last = parts[parts.length - 1];
+  const match = last && last.match(/^(\d{2})_(\d{4})$/);
+  if (!match) return null;
+
+  const mm = parseInt(match[1], 10);
+  const yyyy = parseInt(match[2], 10);
+  if (!(mm >= 1 && mm <= 12) || !(yyyy >= 1900 && yyyy <= 3000)) return null;
+
+  return new Date(yyyy, mm - 1, 1);
+}
+
+/**
+ * Step 3: Update the URL when the month changes (keeps links shareable/bookmarkable).
+ * Uses history.replaceState so it doesn't spam the back button.
+ *
+ * Works for both cases:
+ * - URL already ends in /MM_YYYY  -> replace that segment
+ * - URL ends in /DnDScheduler/    -> append /MM_YYYY
+ */
+function updateURLForMonth(date) {
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  const seg = `${mm}_${yyyy}`;
+
+  const parts = window.location.pathname.split("/").filter(Boolean);
+  if (parts.length === 0) return;
+
+  const last = parts[parts.length - 1];
+  const baseParts = last.match(/^(\d{2})_(\d{4})$/) ? parts.slice(0, -1) : parts;
+
+  const newPath = "/" + [...baseParts, seg].join("/") + "/";
+  window.history.replaceState({}, "", newPath);
 }
 
 /*** 6) SUPABASE REST **********************************************************/
@@ -190,14 +211,14 @@ async function sbFetch(path, { method = "GET", headers = {}, body = null } = {})
     body: body ? JSON.stringify(body) : null,
   });
 
-  // Helpful error detail from Supabase
   if (!res.ok) {
     let errText = "";
-    try { errText = await res.text(); } catch {}
+    try {
+      errText = await res.text();
+    } catch {}
     throw new Error(`Supabase ${res.status} ${res.statusText}: ${errText}`);
   }
 
-  // If there is no body (common for writes), don't try to JSON parse it.
   if (res.status === 204) return null;
 
   const text = await res.text();
@@ -205,21 +226,16 @@ async function sbFetch(path, { method = "GET", headers = {}, body = null } = {})
 
   try {
     return JSON.parse(text);
-  } catch (e) {
-    // If Supabase ever returns non-JSON (rare), don't crash the app
+  } catch {
     return null;
   }
 }
 
 function isoDate(d) {
-  // date columns in Supabase accept YYYY-MM-DD strings
-  if (typeof d === "string") return d;
-  return ymd(d);
+  return typeof d === "string" ? d : ymd(d);
 }
 
-/*** 7) LOAD MONTH *************************************************************
- * IMPORTANT: We filter by date range since there is no "month" column.
- ******************************************************************************/
+/*** 7) LOAD MONTH **************************************************************/
 async function loadMonthData() {
   if (!currentChar && mode === "my") return;
 
@@ -228,12 +244,14 @@ async function loadMonthData() {
 
   // decisions
   const decisions = await sbFetch(
-    `decisions?select=group_id,date,is_blocked,is_confirmed,time_text&group_id=eq.${encodeURIComponent(GROUP_ID)}&date=gte.${start}&date=lt.${end}`
+    `decisions?select=group_id,date,is_blocked,is_confirmed,time_text&group_id=eq.${encodeURIComponent(
+      GROUP_ID
+    )}&date=gte.${start}&date=lt.${end}`
   );
 
   decisionsMap = Object.create(null);
-  for (const row of decisions) {
-    const key = row.date; // already YYYY-MM-DD
+  for (const row of decisions || []) {
+    const key = row.date;
     decisionsMap[key] = {
       is_blocked: !!row.is_blocked,
       is_confirmed: !!row.is_confirmed,
@@ -243,13 +261,15 @@ async function loadMonthData() {
 
   // availability
   const avail = await sbFetch(
-    `availability?select=group_id,person_id,date,status&group_id=eq.${encodeURIComponent(GROUP_ID)}&date=gte.${start}&date=lt.${end}`
+    `availability?select=group_id,person_id,date,status&group_id=eq.${encodeURIComponent(
+      GROUP_ID
+    )}&date=gte.${start}&date=lt.${end}`
   );
 
   availabilityMap = Object.create(null);
   myStatusMap = Object.create(null);
 
-  for (const row of avail) {
+  for (const row of avail || []) {
     const key = row.date;
     if (!availabilityMap[key]) availabilityMap[key] = Object.create(null);
     availabilityMap[key][row.person_id] = (row.status || "").toLowerCase();
@@ -263,10 +283,11 @@ async function loadMonthData() {
 /*** 8) RENDER ******************************************************************/
 function renderBanner() {
   if (!el.bannerTitle) return;
+
   if (mode === "group") {
     el.bannerTitle.textContent = "Group Availability";
     if (el.banner) {
-      el.banner.style.background = "#111827"; // dark grey
+      el.banner.style.background = "#111827";
       el.banner.style.borderColor = "rgba(255,255,255,.14)";
     }
     if (el.changeChar) el.changeChar.style.display = "none";
@@ -274,7 +295,7 @@ function renderBanner() {
     return;
   }
 
-  const c = PEOPLE.find(p => p.id === currentChar);
+  const c = PEOPLE.find((p) => p.id === currentChar);
   el.bannerTitle.textContent = c ? `${c.name}'s Availability` : "Pick a character";
 
   if (el.banner && c) {
@@ -297,11 +318,10 @@ function renderMonthLabel() {
 }
 
 function decisionFor(dateKey) {
-  return decisionsMap[dateKey] || { is_blocked:false, is_confirmed:false, time_text:"" };
+  return decisionsMap[dateKey] || { is_blocked: false, is_confirmed: false, time_text: "" };
 }
 
 function getConfirmedDateKeyForThisMonth() {
-  // Only one per month
   const start = monthStart(currentMonth);
   const end = monthEndExclusive(currentMonth);
   for (const [k, v] of Object.entries(decisionsMap)) {
@@ -312,10 +332,8 @@ function getConfirmedDateKeyForThisMonth() {
 }
 
 function computeBestDatesForThisMonth() {
-  // best = max score among days that have >= WEIGHED_IN_MIN_FOR_BEST weighed in
   const first = monthStart(currentMonth);
-  const last = monthEndExclusive(currentMonth);
-  const daysInMonth = new Date(first.getFullYear(), first.getMonth()+1, 0).getDate();
+  const daysInMonth = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
 
   let bestScore = -Infinity;
   let bestKeys = [];
@@ -332,7 +350,7 @@ function computeBestDatesForThisMonth() {
       const st = per[person.id];
       if (!st) continue;
       weighedIn++;
-      score += (SCORE[st] ?? 0);
+      score += SCORE[st] ?? 0;
     }
 
     if (weighedIn < WEIGHED_IN_MIN_FOR_BEST) continue;
@@ -340,7 +358,7 @@ function computeBestDatesForThisMonth() {
     if (score > bestScore) {
       bestScore = score;
       bestKeys = [key];
-    } else if (score === bestScore && score !== -Infinity) {
+    } else if (score === bestScore) {
       bestKeys.push(key);
     }
   }
@@ -355,12 +373,11 @@ function renderCalendar() {
 
   const first = monthStart(currentMonth);
   const firstDow = first.getDay();
-  const daysInMonth = new Date(first.getFullYear(), first.getMonth()+1, 0).getDate();
+  const daysInMonth = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
 
-  const bestKeys = (mode === "group") ? computeBestDatesForThisMonth() : new Set();
+  const bestKeys = mode === "group" ? computeBestDatesForThisMonth() : new Set();
   const confirmedKeyThisMonth = getConfirmedDateKeyForThisMonth();
 
-  // 42 cells
   for (let i = 0; i < 42; i++) {
     const dayNum = i - firstDow + 1;
 
@@ -378,20 +395,12 @@ function renderCalendar() {
 
     const dec = decisionFor(key);
 
-    // Visual treatments should persist across both screens:
-    // - blocked: red number + subtle red fill
-    // - best: yellow aura
-    // - confirmed: green aura (highest precedence)
     if (dec.is_blocked) cell.classList.add("blocked");
     if (bestKeys.has(key)) cell.classList.add("best");
     if (key === confirmedKeyThisMonth) cell.classList.add("confirmed");
 
-    // Selected outline only for My mode
     if (mode === "my" && selected.has(key)) cell.classList.add("selected");
 
-    // Layout:
-    // - In group mode, date number gets its own vertical lane and dot grid sits to the right.
-    // - In my mode, we keep simple dot chip.
     if (mode === "group") {
       cell.classList.add("groupcell");
 
@@ -407,7 +416,6 @@ function renderCalendar() {
       const dots = document.createElement("div");
       dots.className = "dotgrid";
 
-      // Always 6 dot positions in PEOPLE order
       const per = availabilityMap[key] || {};
       for (const person of PEOPLE) {
         const st = per[person.id] || "";
@@ -427,11 +435,8 @@ function renderCalendar() {
       topRow.appendChild(dots);
       cell.appendChild(topRow);
 
-      // Click opens group modal for that date
       cell.onclick = () => openGroupDateModal(key);
-
     } else {
-      // My mode cell: just number + single status dot for me
       const num = document.createElement("div");
       num.className = "num";
       num.textContent = String(dayNum);
@@ -451,8 +456,7 @@ function renderCalendar() {
           openPickCharModal();
           return;
         }
-        if (selected.has(key)) selected.delete(key);
-        else selected.add(key);
+        selected.has(key) ? selected.delete(key) : selected.add(key);
         updateActions();
         renderCalendar();
       };
@@ -463,21 +467,15 @@ function renderCalendar() {
 }
 
 function updateActions() {
-  if (mode !== "my") {
-    // status buttons should still exist in DOM, but you probably hide them in CSS in group mode
-    return;
-  }
+  if (mode !== "my") return;
 
   const enable = selected.size > 0 && !!currentChar;
 
   if (el.selectedCount) {
-    el.selectedCount.textContent =
-      selected.size === 1 ? "1 date selected" : `${selected.size} dates selected`;
+    el.selectedCount.textContent = selected.size === 1 ? "1 date selected" : `${selected.size} dates selected`;
   }
-
   if (el.clearSelectedX) el.clearSelectedX.style.display = selected.size > 0 ? "flex" : "none";
 
-  // Always show the actions area, but disable when not usable
   if (el.actions) el.actions.classList.add("show");
   if (el.btnAvail) el.btnAvail.disabled = !enable;
   if (el.btnVirt) el.btnVirt.disabled = !enable;
@@ -492,7 +490,7 @@ function clearSelected() {
   renderCalendar();
 }
 
-/*** 9) WRITE OPERATIONS (LOCAL-FIRST) *****************************************/
+/*** 9) WRITE OPS **************************************************************/
 function beginWrite() {
   pendingWrites++;
 }
@@ -500,11 +498,11 @@ function endWrite() {
   pendingWrites = Math.max(0, pendingWrites - 1);
 }
 
-/** Upsert availability for multiple dates */
 async function setStatusBulk(personId, dates, statusOrNull) {
-  const status = (statusOrNull == null || statusOrNull === "") ? null : String(statusOrNull).toLowerCase();
+  const status =
+    statusOrNull == null || statusOrNull === "" ? null : String(statusOrNull).toLowerCase();
 
-  // Optimistic UI update first
+  // Optimistic UI update
   for (const d of dates) {
     if (status === null) delete myStatusMap[d];
     else myStatusMap[d] = status;
@@ -515,21 +513,19 @@ async function setStatusBulk(personId, dates, statusOrNull) {
   }
   clearSelected();
 
-  // Background write
   beginWrite();
   try {
     if (status === null) {
-      // delete rows for those PKs
-      // Supabase REST doesn't support multi-delete in one call cleanly without RPC,
-      // so we do a batched approach. This is fine for small selections.
       for (const d of dates) {
         await sbFetch(
-          `availability?group_id=eq.${encodeURIComponent(GROUP_ID)}&person_id=eq.${encodeURIComponent(personId)}&date=eq.${d}`,
+          `availability?group_id=eq.${encodeURIComponent(GROUP_ID)}&person_id=eq.${encodeURIComponent(
+            personId
+          )}&date=eq.${d}`,
           { method: "DELETE", headers: { Prefer: "return=minimal" } }
         );
       }
     } else {
-      const rows = dates.map(d => ({
+      const rows = dates.map((d) => ({
         group_id: GROUP_ID,
         person_id: personId,
         date: d,
@@ -537,25 +533,25 @@ async function setStatusBulk(personId, dates, statusOrNull) {
         updated_at: new Date().toISOString(),
       }));
 
-      await sbFetch(
-        `availability?on_conflict=group_id,person_id,date`,
-        { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: rows }
-      );
+      await sbFetch(`availability?on_conflict=group_id,person_id,date`, {
+        method: "POST",
+        headers: { Prefer: "resolution=merge-duplicates" },
+        body: rows,
+      });
     }
   } finally {
     endWrite();
   }
 }
 
-/** Upsert decisions for a dateKey */
 async function upsertDecision(dateKey, patch) {
   const existing = decisionFor(dateKey);
   const next = {
     group_id: GROUP_ID,
     date: dateKey,
-    is_blocked: (patch.is_blocked != null) ? !!patch.is_blocked : !!existing.is_blocked,
-    is_confirmed: (patch.is_confirmed != null) ? !!patch.is_confirmed : !!existing.is_confirmed,
-    time_text: (patch.time_text != null) ? String(patch.time_text) : (existing.time_text ?? ""),
+    is_blocked: patch.is_blocked != null ? !!patch.is_blocked : !!existing.is_blocked,
+    is_confirmed: patch.is_confirmed != null ? !!patch.is_confirmed : !!existing.is_confirmed,
+    time_text: patch.time_text != null ? String(patch.time_text) : existing.time_text ?? "",
     updated_at: new Date().toISOString(),
   };
 
@@ -569,16 +565,16 @@ async function upsertDecision(dateKey, patch) {
 
   beginWrite();
   try {
-    await sbFetch(
-      `decisions?on_conflict=group_id,date`,
-      { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: [next] }
-    );
+    await sbFetch(`decisions?on_conflict=group_id,date`, {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates" },
+      body: [next],
+    });
   } finally {
     endWrite();
   }
 }
 
-/** Unconfirm any other confirmed date in this month (but preserve time_text of those dates) */
 async function enforceSingleConfirmPerMonth(newConfirmedDateKey) {
   const start = monthStart(parseYMD(newConfirmedDateKey));
   const end = monthEndExclusive(parseYMD(newConfirmedDateKey));
@@ -590,13 +586,13 @@ async function enforceSingleConfirmPerMonth(newConfirmedDateKey) {
       toUnconfirm.push(k);
     }
   }
+
   for (const k of toUnconfirm) {
-    // set is_confirmed false, leave is_blocked as-is, leave time_text as-is
     await upsertDecision(k, { is_confirmed: false });
   }
 }
 
-/*** 10) GROUP DATE MODAL + TIME MODAL ******************************************/
+/*** 10) GROUP MODALS **********************************************************/
 function openGroupDateModal(dateKey) {
   activeGroupDateKey = dateKey;
 
@@ -616,14 +612,21 @@ function openGroupDateModal(dateKey) {
       name.textContent = `${person.name}:`;
       name.style.color = person.color;
 
-      const st = (per[person.id] || "unknown");
+      const st = per[person.id] || "unknown";
       const val = document.createElement("div");
       val.className = "person-status";
-      val.textContent = (st === "unknown") ? "Unknown" :
-        (st === "available") ? "Available" :
-        (st === "virtual") ? "Virtual Only" :
-        (st === "maybe") ? "Maybe" :
-        (st === "unavailable") ? "Unavailable" : st;
+      val.textContent =
+        st === "unknown"
+          ? "Unknown"
+          : st === "available"
+          ? "Available"
+          : st === "virtual"
+          ? "Virtual Only"
+          : st === "maybe"
+          ? "Maybe"
+          : st === "unavailable"
+          ? "Unavailable"
+          : st;
 
       row.appendChild(name);
       row.appendChild(val);
@@ -631,21 +634,20 @@ function openGroupDateModal(dateKey) {
     }
   }
 
-  // Block/unblock button swap
   if (el.btnBlockDate) el.btnBlockDate.style.display = dec.is_blocked ? "none" : "inline-flex";
   if (el.btnUnblockDate) el.btnUnblockDate.style.display = dec.is_blocked ? "inline-flex" : "none";
 
-  // Confirm/unconfirm controls
   if (el.btnConfirmDate) el.btnConfirmDate.style.display = dec.is_confirmed ? "none" : "inline-flex";
-  if (el.btnCancelConfirm) el.btnCancelConfirm.style.display = dec.is_confirmed ? "inline-flex" : "none";
+  if (el.btnCancelConfirm)
+    el.btnCancelConfirm.style.display = dec.is_confirmed ? "inline-flex" : "none";
 
-  // Clock button only if confirmed date for this month is opened (or: specifically if this date is confirmed)
   if (el.btnEditTime) {
     el.btnEditTime.style.display = dec.is_confirmed ? "inline-flex" : "none";
-    const label = (dec.time_text && dec.time_text.trim()) ? dec.time_text.trim() : "Add a time";
-    el.btnEditTime.querySelector(".btn-label")?.replaceWith?.(); // ignore if not present
-    el.btnEditTime.dataset.label = label; // for styling if needed
-    el.btnEditTime.textContent = label; // simplest; your CSS can add icon via ::before if desired
+    // If your HTML expects an inner span for label, keep it; otherwise just set text.
+    const label = dec.time_text && dec.time_text.trim() ? dec.time_text.trim() : "Add a time";
+    const labelEl = el.btnEditTime.querySelector(".btn-label");
+    if (labelEl) labelEl.textContent = label;
+    else el.btnEditTime.textContent = label;
   }
 
   if (el.groupDetailModal) el.groupDetailModal.style.display = "flex";
@@ -657,21 +659,27 @@ function closeGroupDateModal() {
 }
 
 function openTimeModal(dateKey) {
+  timeModalTargetDateKey = dateKey;
+
   const d = parseYMD(dateKey);
-  if (el.timeModalTitle) el.timeModalTitle.textContent = "Confirming December Date"; // per your request
+  if (el.timeModalTitle) {
+    // e.g. "Confirming February Date"
+    el.timeModalTitle.textContent = `Confirming ${d.toLocaleString(undefined, { month: "long" })} Date`;
+  }
   if (el.timeModalSub) el.timeModalSub.textContent = `${DOW[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
 
   const dec = decisionFor(dateKey);
-  if (el.timeInput) el.timeInput.value = (dec.time_text || "");
+  if (el.timeInput) el.timeInput.value = dec.time_text || "";
 
   if (el.timeModal) el.timeModal.style.display = "flex";
 }
 
 function closeTimeModal() {
   if (el.timeModal) el.timeModal.style.display = "none";
+  timeModalTargetDateKey = null;
 }
 
-/*** 11) EVENT WIRING ***********************************************************/
+/*** 11) EVENT WIRING **********************************************************/
 function openPickCharModal() {
   if (el.modalPick) el.modalPick.style.display = "flex";
 }
@@ -694,7 +702,6 @@ function buildCharButtons() {
       localStorage.setItem("char", currentChar);
       closePickCharModal();
 
-      // load & render month (my view)
       setLoading(true, "Loading…");
       try {
         await loadMonthData();
@@ -711,144 +718,147 @@ function buildCharButtons() {
 }
 
 function wireEvents() {
-  // mode buttons
-  el.modeMy && (el.modeMy.onclick = async () => {
-    mode = "my";
-    localStorage.setItem("mode", mode);
-    renderAll();
-  });
-
-  el.modeGroup && (el.modeGroup.onclick = async () => {
-    mode = "group";
-    localStorage.setItem("mode", mode);
-    // ensure month data loaded
-    setLoading(true, "Loading…");
-    try {
-      await loadMonthData();
-    } catch (e) {
-      console.error(e);
-      alert("Could not load from Supabase. Check table names + columns + RLS policies.");
-    } finally {
-      setLoading(false);
+  el.modeMy &&
+    (el.modeMy.onclick = () => {
+      mode = "my";
+      localStorage.setItem("mode", mode);
       renderAll();
-    }
-  });
+    });
 
-  // prev/next with loading overlay back up
-  el.prev && (el.prev.onclick = async () => {
-    setLoading(true, "Loading…");
-    currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth()-1, 1);
-    selected.clear();
-    try {
-      await loadMonthData();
-    } catch (e) {
-      console.error(e);
-      alert("Could not load from Supabase. Check table names + columns + RLS policies.");
-    } finally {
-      setLoading(false);
-      renderAll();
-    }
-  });
+  el.modeGroup &&
+    (el.modeGroup.onclick = async () => {
+      mode = "group";
+      localStorage.setItem("mode", mode);
+      setLoading(true, "Loading…");
+      try {
+        await loadMonthData();
+      } catch (e) {
+        console.error(e);
+        alert("Could not load from Supabase. Check table names + columns + RLS policies.");
+      } finally {
+        setLoading(false);
+        renderAll();
+      }
+    });
 
-  el.next && (el.next.onclick = async () => {
-    setLoading(true, "Loading…");
-    currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth()+1, 1);
-    selected.clear();
-    try {
-      await loadMonthData();
-    } catch (e) {
-      console.error(e);
-      alert("Could not load from Supabase. Check table names + columns + RLS policies.");
-    } finally {
-      setLoading(false);
-      renderAll();
-    }
-  });
+  // Prev/Next: show overlay + update URL (Step 3) + load
+  el.prev &&
+    (el.prev.onclick = async () => {
+      setLoading(true, "Loading…");
+      currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+      updateURLForMonth(currentMonth); // Step 3
+      selected.clear();
 
-  // change character
+      try {
+        await loadMonthData();
+      } catch (e) {
+        console.error(e);
+        alert("Could not load from Supabase. Check table names + columns + RLS policies.");
+      } finally {
+        setLoading(false);
+        renderAll();
+      }
+    });
+
+  el.next &&
+    (el.next.onclick = async () => {
+      setLoading(true, "Loading…");
+      currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+      updateURLForMonth(currentMonth); // Step 3
+      selected.clear();
+
+      try {
+        await loadMonthData();
+      } catch (e) {
+        console.error(e);
+        alert("Could not load from Supabase. Check table names + columns + RLS policies.");
+      } finally {
+        setLoading(false);
+        renderAll();
+      }
+    });
+
   el.changeChar && (el.changeChar.onclick = () => openPickCharModal());
   el.clearSelectedX && (el.clearSelectedX.onclick = () => clearSelected());
 
-  // status buttons (MY mode)
   el.btnAvail && (el.btnAvail.onclick = () => applyStatus("available"));
   el.btnVirt && (el.btnVirt.onclick = () => applyStatus("virtual"));
   el.btnMaybe && (el.btnMaybe.onclick = () => applyStatus("maybe"));
   el.btnUnavail && (el.btnUnavail.onclick = () => applyStatus("unavailable"));
   el.btnClearStatus && (el.btnClearStatus.onclick = () => applyStatus(null));
 
-  // group modal close
   el.groupDetailClose && (el.groupDetailClose.onclick = () => closeGroupDateModal());
 
-  // group modal actions
-  el.btnBlockDate && (el.btnBlockDate.onclick = async () => {
-    if (!activeGroupDateKey) return;
-    closeGroupDateModal();
-    await upsertDecision(activeGroupDateKey, { is_blocked: true });
-    showToast("Date blocked");
-    renderAll();
-  });
+  el.btnBlockDate &&
+    (el.btnBlockDate.onclick = async () => {
+      if (!activeGroupDateKey) return;
+      const k = activeGroupDateKey;
+      closeGroupDateModal();
+      await upsertDecision(k, { is_blocked: true });
+      showToast("Date blocked");
+      renderAll();
+    });
 
-  el.btnUnblockDate && (el.btnUnblockDate.onclick = async () => {
-    if (!activeGroupDateKey) return;
-    closeGroupDateModal();
-    await upsertDecision(activeGroupDateKey, { is_blocked: false });
-    showToast("Date unblocked");
-    renderAll();
-  });
+  el.btnUnblockDate &&
+    (el.btnUnblockDate.onclick = async () => {
+      if (!activeGroupDateKey) return;
+      const k = activeGroupDateKey;
+      closeGroupDateModal();
+      await upsertDecision(k, { is_blocked: false });
+      showToast("Date unblocked");
+      renderAll();
+    });
 
-  el.btnConfirmDate && (el.btnConfirmDate.onclick = async () => {
-    if (!activeGroupDateKey) return;
-    const k = activeGroupDateKey;
-    closeGroupDateModal();
+  el.btnConfirmDate &&
+    (el.btnConfirmDate.onclick = async () => {
+      if (!activeGroupDateKey) return;
+      const k = activeGroupDateKey;
+      closeGroupDateModal();
 
-    // confirm it (do NOT overwrite block flag)
-    await upsertDecision(k, { is_confirmed: true });
+      await upsertDecision(k, { is_confirmed: true });
+      await enforceSingleConfirmPerMonth(k);
 
-    // enforce single confirm per month
-    await enforceSingleConfirmPerMonth(k);
+      openTimeModal(k);
+      showToast("Date confirmed");
+      renderAll();
+    });
 
-    // open time modal (as modal, not toast)
-    openTimeModal(k);
-    showToast("Date confirmed");
-    renderAll();
-  });
+  el.btnCancelConfirm &&
+    (el.btnCancelConfirm.onclick = async () => {
+      if (!activeGroupDateKey) return;
+      const k = activeGroupDateKey;
+      closeGroupDateModal();
 
-  el.btnCancelConfirm && (el.btnCancelConfirm.onclick = async () => {
-    if (!activeGroupDateKey) return;
-    const k = activeGroupDateKey;
-    closeGroupDateModal();
-    // unconfirm but keep time_text; if blocked earlier, blocked styling should persist because is_blocked remains true
-    await upsertDecision(k, { is_confirmed: false });
-    showToast("Confirmation canceled");
-    renderAll();
-  });
+      await upsertDecision(k, { is_confirmed: false }); // block persists if it was blocked
+      showToast("Confirmation canceled");
+      renderAll();
+    });
 
-  el.btnEditTime && (el.btnEditTime.onclick = () => {
-    if (!activeGroupDateKey) return;
-    const k = activeGroupDateKey;
-    closeGroupDateModal();
-    openTimeModal(k);
-  });
+  el.btnEditTime &&
+    (el.btnEditTime.onclick = () => {
+      if (!activeGroupDateKey) return;
+      const k = activeGroupDateKey;
+      closeGroupDateModal();
+      openTimeModal(k);
+    });
 
-  // time modal close/save
   el.timeClose && (el.timeClose.onclick = () => closeTimeModal());
-  el.timeSave && (el.timeSave.onclick = async () => {
-    const confirmedKey = getConfirmedDateKeyForThisMonth();
-    // We store time_text on the date being edited; it should be activeGroupDateKey's month confirmed date.
-    // If user opened the time modal from a confirmed date, it should be that date; so we store on the visible date:
-    // We'll infer using the modal subtext isn't safe; keep a hidden global:
-    // easiest: store on the month’s confirmed date (current month).
-    const target = confirmedKey;
-    if (!target) {
+
+  el.timeSave &&
+    (el.timeSave.onclick = async () => {
+      const target = timeModalTargetDateKey;
+      if (!target) {
+        closeTimeModal();
+        return;
+      }
+
+      const txt = (el.timeInput?.value || "").trim();
+      await upsertDecision(target, { time_text: txt });
+
       closeTimeModal();
-      return;
-    }
-    const txt = (el.timeInput?.value || "").trim();
-    await upsertDecision(target, { time_text: txt });
-    closeTimeModal();
-    showToast(txt ? "Time saved" : "Time cleared");
-    renderAll();
-  });
+      showToast(txt ? "Time saved" : "Time cleared");
+      renderAll();
+    });
 }
 
 /*** 12) APPLY STATUS ***********************************************************/
@@ -858,31 +868,17 @@ async function applyStatus(statusOrNull) {
 
   const dates = Array.from(selected);
 
-  // local-first already applied inside setStatusBulk
   try {
     await setStatusBulk(currentChar, dates, statusOrNull);
   } catch (e) {
     console.error(e);
     alert("Could not save to Supabase. Check RLS/policies.");
   } finally {
-    // reload month to ensure group view matches (and to catch any drift)
-    // This helps prevent the “my view differs from group view” gotcha.
+    // gotcha reload: prevents drift between My vs Group view
     try {
       await loadMonthData();
     } catch {}
     renderAll();
-  }
-}
-
-/*** 13) GOTCHA CHECK (DATA CONSISTENCY) ****************************************
- * This is the “3) gotcha” safety: after any write, we re-load the month and
- * re-render so My and Group views cannot drift.
- ******************************************************************************/
-async function gotchaReloadMonth() {
-  try {
-    await loadMonthData();
-  } catch (e) {
-    console.warn("Gotcha reload failed:", e);
   }
 }
 
@@ -894,7 +890,6 @@ function renderAll() {
   renderCalendar();
   updateActions();
 
-  // In group mode, selections are irrelevant.
   if (mode === "group") selected.clear();
 }
 
@@ -904,12 +899,15 @@ function renderAll() {
   buildCharButtons();
   wireEvents();
 
-  // If no character selected yet, show picker (for My mode).
-  if (!currentChar) {
-    openPickCharModal();
-  }
+  // Step 2: set currentMonth from URL if present, else current month.
+  currentMonth = getMonthFromURL() || new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
-  // Initial load
+  // Optional nice touch: normalize URL to include /MM_YYYY when loaded without it
+  // (comment this out if you prefer the root URL to stay plain)
+  updateURLForMonth(currentMonth);
+
+  if (!currentChar) openPickCharModal();
+
   setLoading(true, "Loading…");
   try {
     await loadMonthData();

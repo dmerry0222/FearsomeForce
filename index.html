@@ -281,6 +281,30 @@
       opacity: 1;
     }
 
+/* iPhone-friendly: stack dot sextuplet UNDER the date number */
+@media (max-width: 520px) {
+  .groupcell-top{
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .dotgrid{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 across, 2 rows */
+    gap: 4px;
+    width: 22px;           /* keeps cluster tight */
+    margin-left: 2px;      /* aligns under the number nicely */
+  }
+
+  .dot{
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+  }
+}
+    
     /* Actions buttons (My Availability status set) */
     .actions{
       margin-top:14px;

@@ -8,7 +8,7 @@
 /*** 1) CONFIG — PASTE YOUR SUPABASE VALUES HERE ********************************/
 const SUPABASE_URL = "https://oafvjbtxcymogqnledns.supabase.co"; // <-- your Supabase project URL
 const SUPABASE_ANON_KEY =
-  "PASTE_YOUR_SUPABASE_ANON_KEY_HERE"; // <-- your anon public API key (JWT)
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9hZnZqYnR4Y3ltb2dxbmxlZG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxODIzODUsImV4cCI6MjA4MTc1ODM4NX0.8a22dPhl5x13wyh2e2aoHsp3xAogL-1rJRt48i7Aq2o"; // <-- your anon public API key (JWT)
 
 /*** 2) APP CONFIG **************************************************************/
 const GROUP_ID = "fearsomeforce";

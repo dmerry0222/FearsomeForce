@@ -96,7 +96,10 @@ const el = {
 
 function assertConfig() {
   const urlOk = typeof SUPABASE_URL === "string" && SUPABASE_URL.startsWith("https://");
-  const keyOk = typeof SUPABASE_ANON_KEY === "string" && SUPABASE_ANON_KEY.length > 50 && !SUPABASE_ANON_KEY.includes("PASTE_");
+  const keyOk =
+    typeof SUPABASE_ANON_KEY === "string" &&
+    SUPABASE_ANON_KEY.length > 50 &&
+    !SUPABASE_ANON_KEY.includes("PASTE_");
 
   if (!urlOk) {
     alert("SUPABASE_URL looks missing/invalid. It should start with https://");
@@ -105,10 +108,10 @@ function assertConfig() {
   if (!keyOk) {
     alert(
       "SUPABASE_ANON_KEY looks missing/invalid.\n\n" +
-      `Type: ${typeof SUPABASE_ANON_KEY}\n` +
-      `Length: ${(SUPABASE_ANON_KEY || "").length}\n` +
-      `Contains PASTE_: ${(SUPABASE_ANON_KEY || "").includes("PASTE_")}\n\n` +
-      "Double-check you edited the same app.js the page is loading (and bust cache with ?v=...)."
+        `Type: ${typeof SUPABASE_ANON_KEY}\n` +
+        `Length: ${(SUPABASE_ANON_KEY || "").length}\n` +
+        `Contains PASTE_: ${(SUPABASE_ANON_KEY || "").includes("PASTE_")}\n\n` +
+        "Double-check you edited the same app.js the page is loading (and bust cache with ?v=...)."
     );
     throw new Error("SUPABASE_ANON_KEY not set");
   }
@@ -119,7 +122,7 @@ let mode = localStorage.getItem("mode") || "my"; // "my" | "group"
 let currentChar = localStorage.getItem("char") || "";
 let selected = new Set(); // YYYY-MM-DD strings (my view selection)
 
-// currentMonth is set during init from URL (step 1/2 below), defaulting to current month.
+// currentMonth defaults to current month, but init will override from hash if present.
 let currentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
 let availabilityMap = Object.create(null); // { [dateKey]: { [person_id]: status } }
@@ -150,6 +153,9 @@ function dateTitleShort(dateKey) {
   const d = parseYMD(dateKey);
   return `${DOW[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
 }
+function isSameMonth(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+}
 function showToast(msg, ms = 1800) {
   if (!el.toast || !el.toastText) return;
   el.toastText.textContent = msg;
@@ -163,46 +169,32 @@ function setLoading(on, text = "Loading…") {
   el.loadingOverlay.style.display = on ? "flex" : "none";
 }
 
-/*** 5.1) URL MONTH ROUTING (Steps 1, 2, 3) ************************************/
-/**
- * Step 1: Read /MM_YYYY from the URL path (e.g., /DnDScheduler/02_2026)
- * Returns a Date(year, month-1, 1) or null.
- */
-function getMonthFromURL() {
-  const parts = window.location.pathname.split("/").filter(Boolean);
-  if (parts.length === 0) return null;
-  const last = parts[parts.length - 1];
-  const match = last && last.match(/^(\d{2})_(\d{4})$/);
-  if (!match) return null;
-
-  const mm = parseInt(match[1], 10);
-  const yyyy = parseInt(match[2], 10);
-  if (!(mm >= 1 && mm <= 12) || !(yyyy >= 1900 && yyyy <= 3000)) return null;
-
+/*** 5.1) HASH MONTH ROUTING (GitHub Pages safe) ********************************
+ * Uses URL hash, e.g.:
+ *   https://.../DnDScheduler/#/02_2026
+ ******************************************************************************/
+function formatMonthSlug(d) {
+  return `${pad2(d.getMonth() + 1)}_${d.getFullYear()}`; // "02_2026"
+}
+function parseMonthSlug(slug) {
+  if (!slug) return null;
+  const m = slug.match(/^(\d{1,2})_(\d{4})$/);
+  if (!m) return null;
+  const mm = Number(m[1]);
+  const yyyy = Number(m[2]);
+  if (!(mm >= 1 && mm <= 12)) return null;
+  if (!(yyyy >= 1900 && yyyy <= 3000)) return null;
   return new Date(yyyy, mm - 1, 1);
 }
-
-/**
- * Step 3: Update the URL when the month changes (keeps links shareable/bookmarkable).
- * Uses history.replaceState so it doesn't spam the back button.
- *
- * Works for both cases:
- * - URL already ends in /MM_YYYY  -> replace that segment
- * - URL ends in /DnDScheduler/    -> append /MM_YYYY
- */
-function updateURLForMonth(date) {
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const yyyy = date.getFullYear();
-  const seg = `${mm}_${yyyy}`;
-
-  const parts = window.location.pathname.split("/").filter(Boolean);
-  if (parts.length === 0) return;
-
-  const last = parts[parts.length - 1];
-  const baseParts = last.match(/^(\d{2})_(\d{4})$/) ? parts.slice(0, -1) : parts;
-
-  const newPath = "/" + [...baseParts, seg].join("/") + "/";
-  window.history.replaceState({}, "", newPath);
+function readMonthFromHash() {
+  // supports "#/02_2026" or "#02_2026"
+  const raw = (location.hash || "").replace(/^#\/?/, "").trim();
+  return parseMonthSlug(raw);
+}
+function writeMonthToHash(d) {
+  const slug = formatMonthSlug(d);
+  const next = `#/${slug}`;
+  if (location.hash !== next) location.hash = next;
 }
 
 /*** 6) SUPABASE REST **********************************************************/
@@ -508,8 +500,7 @@ function endWrite() {
 }
 
 async function setStatusBulk(personId, dates, statusOrNull) {
-  const status =
-    statusOrNull == null || statusOrNull === "" ? null : String(statusOrNull).toLowerCase();
+  const status = statusOrNull == null || statusOrNull === "" ? null : String(statusOrNull).toLowerCase();
 
   // Optimistic UI update
   for (const d of dates) {
@@ -527,9 +518,7 @@ async function setStatusBulk(personId, dates, statusOrNull) {
     if (status === null) {
       for (const d of dates) {
         await sbFetch(
-          `availability?group_id=eq.${encodeURIComponent(GROUP_ID)}&person_id=eq.${encodeURIComponent(
-            personId
-          )}&date=eq.${d}`,
+          `availability?group_id=eq.${encodeURIComponent(GROUP_ID)}&person_id=eq.${encodeURIComponent(personId)}&date=eq.${d}`,
           { method: "DELETE", headers: { Prefer: "return=minimal" } }
         );
       }
@@ -591,9 +580,7 @@ async function enforceSingleConfirmPerMonth(newConfirmedDateKey) {
   const toUnconfirm = [];
   for (const [k, v] of Object.entries(decisionsMap)) {
     const d = parseYMD(k);
-    if (d >= start && d < end && v.is_confirmed && k !== newConfirmedDateKey) {
-      toUnconfirm.push(k);
-    }
+    if (d >= start && d < end && v.is_confirmed && k !== newConfirmedDateKey) toUnconfirm.push(k);
   }
 
   for (const k of toUnconfirm) {
@@ -647,12 +634,10 @@ function openGroupDateModal(dateKey) {
   if (el.btnUnblockDate) el.btnUnblockDate.style.display = dec.is_blocked ? "inline-flex" : "none";
 
   if (el.btnConfirmDate) el.btnConfirmDate.style.display = dec.is_confirmed ? "none" : "inline-flex";
-  if (el.btnCancelConfirm)
-    el.btnCancelConfirm.style.display = dec.is_confirmed ? "inline-flex" : "none";
+  if (el.btnCancelConfirm) el.btnCancelConfirm.style.display = dec.is_confirmed ? "inline-flex" : "none";
 
   if (el.btnEditTime) {
     el.btnEditTime.style.display = dec.is_confirmed ? "inline-flex" : "none";
-    // If your HTML expects an inner span for label, keep it; otherwise just set text.
     const label = dec.time_text && dec.time_text.trim() ? dec.time_text.trim() : "Add a time";
     const labelEl = el.btnEditTime.querySelector(".btn-label");
     if (labelEl) labelEl.textContent = label;
@@ -672,10 +657,11 @@ function openTimeModal(dateKey) {
 
   const d = parseYMD(dateKey);
   if (el.timeModalTitle) {
-    // e.g. "Confirming February Date"
     el.timeModalTitle.textContent = `Confirming ${d.toLocaleString(undefined, { month: "long" })} Date`;
   }
-  if (el.timeModalSub) el.timeModalSub.textContent = `${DOW[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+  if (el.timeModalSub) {
+    el.timeModalSub.textContent = `${DOW[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+  }
 
   const dec = decisionFor(dateKey);
   if (el.timeInput) el.timeInput.value = dec.time_text || "";
@@ -750,12 +736,12 @@ function wireEvents() {
       }
     });
 
-  // Prev/Next: show overlay + update URL (Step 3) + load
+  // Prev/Next: show overlay + update HASH + load
   el.prev &&
     (el.prev.onclick = async () => {
       setLoading(true, "Loading…");
       currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
-      updateURLForMonth(currentMonth); // Step 3
+      writeMonthToHash(currentMonth); // ✅ hash routing
       selected.clear();
 
       try {
@@ -773,7 +759,7 @@ function wireEvents() {
     (el.next.onclick = async () => {
       setLoading(true, "Loading…");
       currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
-      updateURLForMonth(currentMonth); // Step 3
+      writeMonthToHash(currentMonth); // ✅ hash routing
       selected.clear();
 
       try {
@@ -786,6 +772,27 @@ function wireEvents() {
         renderAll();
       }
     });
+
+  // Listen for pasted/shared hash links while app is already open
+  window.addEventListener("hashchange", async () => {
+    const d = readMonthFromHash();
+    if (!d) return;
+    if (isSameMonth(d, currentMonth)) return;
+
+    setLoading(true, "Loading…");
+    currentMonth = d;
+    selected.clear();
+
+    try {
+      await loadMonthData();
+    } catch (e) {
+      console.error(e);
+      alert("Could not load from Supabase. Check table names + columns + RLS policies.");
+    } finally {
+      setLoading(false);
+      renderAll();
+    }
+  });
 
   el.changeChar && (el.changeChar.onclick = () => openPickCharModal());
   el.clearSelectedX && (el.clearSelectedX.onclick = () => clearSelected());
@@ -838,7 +845,7 @@ function wireEvents() {
       const k = activeGroupDateKey;
       closeGroupDateModal();
 
-      await upsertDecision(k, { is_confirmed: false }); // block persists if it was blocked
+      await upsertDecision(k, { is_confirmed: false });
       showToast("Confirmation canceled");
       renderAll();
     });
@@ -908,12 +915,11 @@ function renderAll() {
   buildCharButtons();
   wireEvents();
 
-  // Step 2: set currentMonth from URL if present, else current month.
-  currentMonth = getMonthFromURL() || new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  // Read month from hash, fallback to current month
+  currentMonth = readMonthFromHash() || new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
-  // Optional nice touch: normalize URL to include /MM_YYYY when loaded without it
-  // (comment this out if you prefer the root URL to stay plain)
-  updateURLForMonth(currentMonth);
+  // Ensure the hash exists so the link is always shareable
+  writeMonthToHash(currentMonth);
 
   if (!currentChar) openPickCharModal();
 

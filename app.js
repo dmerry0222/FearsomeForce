@@ -95,12 +95,21 @@ const el = {
 };
 
 function assertConfig() {
-  if (!SUPABASE_URL || SUPABASE_URL.includes("PASTE_")) {
-    alert("Set SUPABASE_URL at the top of app.js");
+  const urlOk = typeof SUPABASE_URL === "string" && SUPABASE_URL.startsWith("https://");
+  const keyOk = typeof SUPABASE_ANON_KEY === "string" && SUPABASE_ANON_KEY.length > 50 && !SUPABASE_ANON_KEY.includes("PASTE_");
+
+  if (!urlOk) {
+    alert("SUPABASE_URL looks missing/invalid. It should start with https://");
     throw new Error("SUPABASE_URL not set");
   }
-  if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes("PASTE_")) {
-    alert("Set SUPABASE_ANON_KEY at the top of app.js");
+  if (!keyOk) {
+    alert(
+      "SUPABASE_ANON_KEY looks missing/invalid.\n\n" +
+      `Type: ${typeof SUPABASE_ANON_KEY}\n` +
+      `Length: ${(SUPABASE_ANON_KEY || "").length}\n` +
+      `Contains PASTE_: ${(SUPABASE_ANON_KEY || "").includes("PASTE_")}\n\n` +
+      "Double-check you edited the same app.js the page is loading (and bust cache with ?v=...)."
+    );
     throw new Error("SUPABASE_ANON_KEY not set");
   }
 }

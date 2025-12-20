@@ -176,32 +176,39 @@ function setLoading(on, text="Loading…") {
 }
 
 /*** 6) SUPABASE REST **********************************************************/
-async function sbFetch(path, { method="GET", headers={}, body=null } = {}) {
+async function sbFetch(path, { method = "GET", headers = {}, body = null } = {}) {
   const url = `${SUPABASE_URL}/rest/v1/${path}`;
+
   const res = await fetch(url, {
     method,
     headers: {
       apikey: SUPABASE_ANON_KEY,
       Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       "Content-Type": "application/json",
-      Prefer: "return=representation",
       ...headers,
     },
     body: body ? JSON.stringify(body) : null,
   });
 
+  // Helpful error detail from Supabase
   if (!res.ok) {
-    let detail = "";
-    try { detail = await res.text(); } catch {}
-    const err = new Error(`Supabase ${res.status} on ${path}: ${detail}`);
-    err.status = res.status;
-    err.detail = detail;
-    throw err;
+    let errText = "";
+    try { errText = await res.text(); } catch {}
+    throw new Error(`Supabase ${res.status} ${res.statusText}: ${errText}`);
   }
 
-  // 204 no content
+  // If there is no body (common for writes), don't try to JSON parse it.
   if (res.status === 204) return null;
-  return await res.json();
+
+  const text = await res.text();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    // If Supabase ever returns non-JSON (rare), don't crash the app
+    return null;
+  }
 }
 
 function isoDate(d) {

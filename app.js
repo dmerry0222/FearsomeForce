@@ -92,6 +92,11 @@ const el = {
 
   toast: $("#toast"),
   toastText: $("#toastText"),
+
+  confirmedBar: $("#confirmedBar"),
+  confirmedText: $("#confirmedText"),
+  confirmedTimeBtn: $("#confirmedTimeBtn"),
+
 };
 
 function assertConfig() {
@@ -330,6 +335,27 @@ function getConfirmedDateKeyForThisMonth() {
     if (d >= start && d < end && v.is_confirmed) return k;
   }
   return null;
+}
+
+function renderConfirmedBar() {
+  if (!el.confirmedBar || !el.confirmedText || !el.confirmedTimeBtn) return;
+
+  const confirmedKey = getConfirmedDateKeyForThisMonth();
+  if (!confirmedKey) {
+    el.confirmedBar.style.display = "none";
+    return;
+  }
+
+  const dec = decisionFor(confirmedKey);
+  const label = (dec.time_text && dec.time_text.trim()) ? dec.time_text.trim() : "Add a time";
+
+  el.confirmedText.textContent = `Confirmed: ${dateTitleShort(confirmedKey)},`;
+  el.confirmedTimeBtn.textContent = label;
+
+  // Remember which date this bar refers to
+  el.confirmedTimeBtn.dataset.dateKey = confirmedKey;
+
+  el.confirmedBar.style.display = "flex";
 }
 
 function computeBestDatesForThisMonth() {
@@ -736,6 +762,13 @@ function wireEvents() {
       }
     });
 
+     el.confirmedTimeBtn &&
+    (el.confirmedTimeBtn.onclick = () => {
+      const k = el.confirmedTimeBtn.dataset.dateKey;
+      if (!k) return;
+      openTimeModal(k);
+    });
+
   // Prev/Next: show overlay + update HASH + load
   el.prev &&
     (el.prev.onclick = async () => {
@@ -903,6 +936,7 @@ function renderAll() {
   renderBanner();
   renderModeButtons();
   renderMonthLabel();
+  renderConfirmedBar();
   renderCalendar();
   updateActions();
 

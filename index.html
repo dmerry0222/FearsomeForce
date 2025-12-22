@@ -164,6 +164,35 @@
       background: rgba(255,255,255,.03);
       box-shadow: var(--shadow);
     }
+.confirmed-bar{
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  background: rgba(34, 197, 94, 0.14);
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  color: rgba(255,255,255,0.95);
+}
+
+.confirmed-time-btn{
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.22);
+  color: white;
+  font-weight: 800;
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.confirmed-time-btn:active{
+  transform: translateY(1px);
+}
+
+    
     .dow{
       display:grid;
       grid-template-columns: repeat(7, 1fr);
